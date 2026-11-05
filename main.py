@@ -126,6 +126,15 @@ def widget():
                         headers={"Cache-Control": "public, max-age=300"})
 
 
+@app.get("/avatar")
+def avatar():
+    for name in ("avatar.jpg", "avatar.jpeg", "avatar.png", "avatar.webp"):
+        p = STATIC / name
+        if p.exists():
+            return FileResponse(p, headers={"Cache-Control": "public, max-age=3600"})
+    raise HTTPException(404, "no avatar")
+
+
 @app.get("/admin")
 def admin_page():
     return FileResponse(STATIC / "admin.html")

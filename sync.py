@@ -66,6 +66,8 @@ def run(force: bool = False) -> str:
                 store.replace_post(e.url, h, chunks)
                 changed += 1
                 consecutive = 0
+                if changed % 10 == 0:
+                    store.reload()  # chat starts answering from what is already read
             except Exception:
                 log.exception("failed to index %s", e.url)
                 failed += 1

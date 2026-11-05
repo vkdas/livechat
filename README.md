@@ -48,6 +48,11 @@ Blogger → **Settings → Site feed → Allow Blog Feed → Full**। এটা
 - মডেলের নাম (`CHAT_MODEL`, `EMBED_MODEL`) Google বদলালে `.env`-এ হালনাগাদ করুন।
 - এই কোড আসল Gemini key ও আপনার লাইভ সাইট দিয়ে এখনো চালানো হয়নি (নিচে দেখুন), তাই প্রথম ডিপ্লয়ে ছোটখাটো ঠিক করার দরকার হলে লগ পাঠালে সারিয়ে দেব।
 
+## নাম, ছবি ও ফন্ট বদলানো
+- **নাম ও পদবি:** ডিফল্ট `Kakoli Rani` / `Assistant, BD JOBS INFO`। বদলাতে স্ক্রিপ্ট ট্যাগে `data-title="..."` ও `data-subtitle="..."` দিন।
+- **ছবি:** রিপোজিটরিতে `avatar.jpg` (বা `avatar.png`/`avatar.webp`) নামে একটা ছবি আপলোড করলে চ্যাটের মাথায় গোল করে দেখাবে। ছবি বর্গাকার (যেমন ৪০০×৪০০) ও ছোট (২০০ KB-র কম) হলে ভালো। অন্য কোথাও ছবি থাকলে `data-photo="https://.../ছবি.jpg"` দিন।
+- **বাংলা ফন্ট:** ডিফল্ট Hind Siliguri (Google Fonts)। নিজের Unicode ফন্ট (যেমন SutonnyOMJ বা SolaimanLipi, লাইসেন্স দেখে নিন) রিপোজিটরিতে আপলোড করে `data-font-url="https://আপনার-ঠিকানা.onrender.com/ফন্টের-নাম.ttf"` দিলে সেটা ব্যবহার হবে। এর জন্য main.py-তে ফন্ট ফাইল পরিবেশনের ব্যবস্থা লাগবে, আমাকে জানাবেন।
+
 ## টেস্ট
 ```
 pip install -r requirements-dev.txt

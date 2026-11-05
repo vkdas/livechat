@@ -10,7 +10,8 @@
     return v == null || v === '' ? d : v;
   };
   var API = attr('api', s && s.src ? new URL(s.src).origin : '');
-  var TITLE = attr('title', 'LIVE CHAT');
+  var TITLE = attr('title', 'Kakoli Rani');
+  var SUB = attr('subtitle', 'Assistant, BD JOBS INFO');
   var COLOR = attr('color', '#0E5A45');
   var THEME = attr('theme', 'auto'); // auto | light | dark
   var KEY = 'livechat_hist_v2';
@@ -19,8 +20,7 @@
   /* ---------- interface text: English by default, then follows the visitor's language ---------- */
   var I18N = {
     en: {
-      sub: 'Answers from this site only',
-      greet: 'Type or say what you want to know. Answers come only from this site, with sources.',
+      greet: 'Hi, I\u2019m Kakoli Rani, the assistant of BD JOBS INFO. Ask me about job circulars, deadlines and how to apply.',
       starters: ['Which circulars were published this week?', 'Which applications close soon?', 'What documents do I need to apply?'],
       open: 'Open chat', close: 'Close chat', fresh: 'New conversation',
       ph: 'Type your question', ask: 'Question', send: 'Send', mic: 'Ask by voice',
@@ -31,8 +31,7 @@
       kinds: { post: 'Post', page: 'Page', pdf: 'PDF', image: 'Image', docx: 'Word file', text: 'File' }
     },
     bn: {
-      sub: 'শুধু এই সাইটের তথ্য থেকে উত্তর',
-      greet: 'যা জানতে চান লিখুন বা বলুন। উত্তর শুধু এই সাইটের তথ্য থেকে, সূত্রসহ।',
+      greet: 'হ্যালো, আমি Kakoli Rani, BD JOBS INFO-এর অ্যাসিস্ট্যান্ট। চাকরির সার্কুলার, শেষ তারিখ বা আবেদনের নিয়ম সম্পর্কে জিজ্ঞাসা করুন।',
       starters: ['এই সপ্তাহের নতুন সার্কুলার কোনগুলো?', 'কোন আবেদনের শেষ তারিখ কাছে?', 'আবেদনে কী কী কাগজ লাগে?'],
       open: 'চ্যাট খুলুন', close: 'চ্যাট বন্ধ করুন', fresh: 'নতুন কথোপকথন',
       ph: 'প্রশ্ন লিখুন', ask: 'প্রশ্ন', send: 'পাঠান', mic: 'কথা বলে প্রশ্ন করুন',
@@ -43,8 +42,7 @@
       kinds: { post: 'পোস্ট', page: 'পেজ', pdf: 'PDF', image: 'ছবি', docx: 'Word ফাইল', text: 'ফাইল' }
     },
     hi: {
-      sub: 'केवल इस साइट की जानकारी से उत्तर',
-      greet: 'जो जानना है लिखें या बोलें। उत्तर केवल इस साइट की जानकारी से, स्रोत सहित।',
+      greet: 'नमस्ते, मैं Kakoli Rani हूँ, BD JOBS INFO की असिस्टेंट। नौकरी सर्कुलर, अंतिम तिथि या आवेदन के तरीके के बारे में पूछें।',
       starters: [],
       open: 'चैट खोलें', close: 'चैट बंद करें', fresh: 'नई बातचीत',
       ph: 'अपना प्रश्न लिखें', ask: 'प्रश्न', send: 'भेजें', mic: 'बोलकर पूछें',
@@ -55,8 +53,7 @@
       kinds: { post: 'पोस्ट', page: 'पेज', pdf: 'PDF', image: 'चित्र', docx: 'Word फ़ाइल', text: 'फ़ाइल' }
     },
     ar: {
-      sub: 'إجابات من هذا الموقع فقط',
-      greet: 'اكتب أو قل ما تريد معرفته. الإجابات من هذا الموقع فقط، مع المصادر.',
+      greet: 'مرحبًا، أنا Kakoli Rani، مساعدة BD JOBS INFO. اسألني عن إعلانات التوظيف والمواعيد النهائية وطريقة التقديم.',
       starters: [],
       open: 'فتح الدردشة', close: 'إغلاق الدردشة', fresh: 'محادثة جديدة',
       ph: 'اكتب سؤالك', ask: 'السؤال', send: 'إرسال', mic: 'اسأل بالصوت',
@@ -81,8 +78,14 @@
   if (attr('font', 'on') !== 'off' && !document.getElementById('livechat-font')) {
     var lk = document.createElement('link');
     lk.id = 'livechat-font'; lk.rel = 'stylesheet';
-    lk.href = 'https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@400;500;600;700&display=swap';
+    lk.href = 'https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap';
     document.head.appendChild(lk);
+  }
+  var FONT_URL = attr('font-url', '');
+  if (FONT_URL) {
+    var fs = document.createElement('style');
+    fs.textContent = '@font-face{font-family:"LiveChatBn";src:url("' + FONT_URL.replace(/["\\)]/g, '') + '");font-display:swap}';
+    document.head.appendChild(fs);
   }
 
   /* ---------- icons ---------- */
@@ -139,7 +142,7 @@
     'button,input{font:inherit;color:inherit}' +
     'button{cursor:pointer;background:none;border:0}' +
     ':focus-visible{outline:2px solid var(--link);outline-offset:2px}' +
-    '.fab,.panel{font-family:"Anek Bangla","Hind Siliguri","Noto Sans Bengali",system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}' +
+    '.fab,.panel{font-family:"LiveChatBn","Hind Siliguri","Noto Sans Bengali",system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}' +
     '.fab{position:fixed;right:18px;bottom:18px;width:58px;height:58px;border-radius:50%;background:var(--green);color:#fff;display:grid;place-items:center;box-shadow:0 6px 20px rgba(10,30,24,.35);z-index:2147483000;transition:transform .15s}' +
     '.fab:hover{transform:scale(1.05)}.fab svg{grid-area:1/1;transition:opacity .15s,transform .2s}' +
     '.fab .i-down{opacity:0;transform:rotate(-90deg)}.fab[aria-expanded=true] .i-chat{opacity:0;transform:rotate(90deg)}.fab[aria-expanded=true] .i-down{opacity:1;transform:none}' +
@@ -147,7 +150,8 @@
     '.panel[hidden]{display:none}' +
     '.panel.in{animation:lcin .18s ease-out}@keyframes lcin{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}' +
     'header{background:var(--green);color:#fff;display:flex;align-items:center;gap:11px;padding:13px 10px 13px 15px}' +
-    '.logo{width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.16);display:grid;place-items:center;flex:none}' +
+    '.logo{width:40px;height:40px;border-radius:11px;background:rgba(255,255,255,.16);display:grid;place-items:center;flex:none;overflow:hidden}' +
+    '.logo.ph{border-radius:50%;background:none;box-shadow:0 0 0 2px rgba(255,255,255,.55)}.logo img{width:100%;height:100%;object-fit:cover;display:block}' +
     '.hd{flex:1;min-width:0}.t{font-size:16.5px;font-weight:650;line-height:1.25;letter-spacing:.01em}.st{font-size:12.5px;opacity:.82;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '.ib{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:#fff;opacity:.88}.ib:hover{background:rgba(255,255,255,.15);opacity:1}' +
     '.log{position:relative;flex:1;overflow-y:auto;padding:16px 14px;background:var(--bg);display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth}' +
@@ -213,10 +217,16 @@
       input = $('input'), mic = $('.mic'), sendBtn = $('.send');
   $('.t').textContent = TITLE;
 
+  // profile photo: data-photo="URL", otherwise avatar.jpg/png/webp uploaded next to the server files
+  var logo = $('.logo'), photo = new Image();
+  photo.alt = '';
+  photo.onload = function () { logo.innerHTML = ''; logo.classList.add('ph'); logo.appendChild(photo); };
+  photo.src = attr('photo', API + '/avatar');
+
   function setLabel(el, text) { el.setAttribute('aria-label', text); el.title = text; }
   function applyLang() {
     var t = T();
-    $('.st').textContent = attr('subtitle', '') && lang === 'en' ? attr('subtitle', '') : t.sub;
+    $('.st').textContent = SUB;
     input.placeholder = t.ph; input.setAttribute('aria-label', t.ask);
     $('.ft').textContent = t.foot;
     setLabel(fab, panel.hidden ? t.open : t.close);
