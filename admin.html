@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LIVE CHAT অ্যাডমিন</title>
+<style>
+  body{font-family:system-ui,"Noto Sans Bengali",sans-serif;margin:0;background:#f5f6f8;color:#1c1e21}
+  main{max-width:900px;margin:0 auto;padding:16px}
+  h1{font-size:20px} h2{font-size:16px;margin-top:28px}
+  .card{background:#fff;border-radius:10px;padding:14px;box-shadow:0 1px 3px #0002;margin-bottom:12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .num{font-size:26px;font-weight:700} .muted{color:#65676b;font-size:13px}
+  table{width:100%;border-collapse:collapse;font-size:14px} td,th{text-align:left;padding:6px 4px;border-bottom:1px solid #eee;vertical-align:top}
+  input,button{font:inherit;padding:8px 10px;border-radius:8px;border:1px solid #ccd0d5}
+  button{background:#1a73e8;color:#fff;border:0;cursor:pointer} button.sec{background:#e4e6eb;color:#1c1e21}
+</style>
+</head>
+<body>
+<main>
+  <h1>LIVE CHAT — অ্যাডমিন</h1>
+  <div class="card">
+    <input id="tok" type="password" placeholder="অ্যাডমিন টোকেন">
+    <button id="go">দেখুন</button>
+    <button id="re" class="sec">এখনই আপডেট (নতুন পোস্ট)</button>
+    <button id="reall" class="sec">সব নতুন করে ইনডেক্স</button>
+    <div id="msg" class="muted"></div>
+  </div>
+  <div id="out"></div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+$('tok').value=sessionStorage.getItem('lc_admin')||'';
+function table(rows,cols){return '<table>'+rows.map(r=>'<tr>'+cols.map(c=>'<td>'+esc(r[c])+'</td>').join('')+'</tr>').join('')+'</table>'||'';}
+async function api(path,method){
+  const t=$('tok').value; sessionStorage.setItem('lc_admin',t);
+  const r=await fetch(path,{method:method||'GET',headers:{Authorization:'Bearer '+t}});
+  if(!r.ok){throw new Error((await r.json().catch(()=>({}))).detail||r.status)}
+  return r.json();
+}
+async function load(){
+  try{
+    const d=await api('/admin/stats'); $('msg').textContent='';
+    $('out').innerHTML=
+      '<div class="grid">'+
+      [['পোস্ট/পেজ',d.posts],['চাংক',d.chunks],['৩০ দিনের প্রশ্ন',d.questions_30d],['👍',d.feedback.up],['👎',d.feedback.down]]
+        .map(x=>'<div class="card"><div class="num">'+x[1]+'</div><div class="muted">'+x[0]+'</div></div>').join('')+'</div>'+
+      '<div class="card muted">শেষ সিঙ্ক: '+esc(d.last_sync||'—')+'<br>'+esc(d.last_sync_result||'')+'</div>'+
+      '<h2>সবচেয়ে বেশি করা প্রশ্ন</h2><div class="card">'+table(d.top_questions,['q','count'])+'</div>'+
+      '<h2>উত্তর না পাওয়া প্রশ্ন (নতুন পোস্টের আইডিয়া)</h2><div class="card">'+table(d.unanswered,['q','count'])+'</div>'+
+      '<h2>সাম্প্রতিক 👎 উত্তর</h2><div class="card">'+table(d.recent_downvotes,['q','answer'])+'</div>';
+  }catch(e){$('msg').textContent='ত্রুটি: '+e.message}
+}
+async function reindex(force){
+  try{const r=await api('/admin/reindex?force='+force,'POST');$('msg').textContent=r.started?'ইনডেক্সিং শুরু হয়েছে, কিছুক্ষণ পর রিফ্রেশ করুন':'আগের কাজ চলছে'}
+  catch(e){$('msg').textContent='ত্রুটি: '+e.message}
+}
+$('go').onclick=load; $('re').onclick=()=>reindex(false); $('reall').onclick=()=>reindex(true);
+if($('tok').value) load();
+</script>
+</body>
+</html>

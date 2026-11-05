@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: livechat
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: BLOG_URL
+        value: https://bdjobsinfo.com
+      - key: APP_NAME
+        value: LIVE CHAT
+      - key: ALLOWED_ORIGINS
+        value: https://bdjobsinfo.com,https://www.bdjobsinfo.com
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false
