@@ -4,7 +4,7 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 
-from .config import MAX_FILE_MB
+from config import MAX_FILE_MB
 
 HEADERS = {"User-Agent": "LiveChatBot/1.0 (+site assistant)"}
 

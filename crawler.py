@@ -2,8 +2,8 @@ import json
 import logging
 from dataclasses import dataclass
 
-from . import net
-from .config import BLOG_URL
+import net
+from config import BLOG_URL
 
 log = logging.getLogger("crawler")
 

@@ -7,8 +7,8 @@ from urllib.parse import unquote, urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
-from . import llm, net
-from .config import (BLOG_URL, MAX_FILES_PER_POST, MAX_IMAGES_PER_POST, OCR_IMAGES,
+import llm, net
+from config import (BLOG_URL, MAX_FILES_PER_POST, MAX_IMAGES_PER_POST, OCR_IMAGES,
                      PDF_MAX_OCR_PAGES, PDF_OCR)
 
 log = logging.getLogger("extract")

@@ -1,10 +1,10 @@
 import hashlib
 import re
 
-from . import llm
-from .config import MIN_SIM, TOP_K
-from .store import store
-from .textutil import has_bengali
+import llm
+from config import MIN_SIM, TOP_K
+from store import store
+from textutil import has_bengali
 
 NOT_FOUND = {
     "bn": "দুঃখিত, এই সাইটে আমি এ বিষয়ে কোনো তথ্য খুঁজে পাইনি। অন্যভাবে বা আরেকটু স্পষ্ট করে প্রশ্ন করে দেখবেন?",

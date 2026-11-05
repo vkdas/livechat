@@ -5,8 +5,8 @@ import time
 
 import numpy as np
 
-from .config import DATA_DIR, EMBED_DIM
-from .textutil import BM25, tokenize
+from config import DATA_DIR, EMBED_DIM
+from textutil import BM25, tokenize
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS posts(post_url TEXT PRIMARY KEY, hash TEXT, synced_at REAL);

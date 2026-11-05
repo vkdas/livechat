@@ -12,13 +12,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
-from . import rag, sync
-from .config import (ADMIN_TOKEN, ALLOWED_ORIGINS, APP_NAME, BLOG_URL, DAILY_CHAT_CAP,
+import rag, sync
+from config import (ADMIN_TOKEN, ALLOWED_ORIGINS, APP_NAME, BLOG_URL, DAILY_CHAT_CAP,
                      RATE_LIMIT_PER_HOUR)
-from .store import store
+from store import store
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-STATIC = Path(__file__).parent / "static"
+STATIC = Path(__file__).parent
 
 
 @asynccontextmanager

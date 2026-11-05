@@ -7,7 +7,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
-from .config import CHAT_MODEL, EMBED_DIM, EMBED_MODEL, GEMINI_API_KEY
+from config import CHAT_MODEL, EMBED_DIM, EMBED_MODEL, GEMINI_API_KEY
 
 log = logging.getLogger("llm")
 _client = None

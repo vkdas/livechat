@@ -3,10 +3,10 @@ import logging
 import threading
 import time
 
-from . import crawler, extract, llm
-from .config import CHUNK_CHARS, CHUNK_OVERLAP, MAX_CHUNKS_PER_DOC, SYNC_INTERVAL_MIN
-from .store import store
-from .textutil import chunk_text
+import crawler, extract, llm
+from config import CHUNK_CHARS, CHUNK_OVERLAP, MAX_CHUNKS_PER_DOC, SYNC_INTERVAL_MIN
+from store import store
+from textutil import chunk_text
 
 log = logging.getLogger("sync")
 _lock = threading.Lock()

@@ -26,7 +26,7 @@ Blogger → **Settings → Site feed → Allow Blog Feed → Full**। এটা
 3. `GEMINI_API_KEY` ও `ADMIN_TOKEN` (নিজের বানানো লম্বা পাসওয়ার্ড) বসান।
 4. Deploy শেষ হলে আপনার ঠিকানা হবে `https://livechat-xxxx.onrender.com`। `/health` খুলে `ok: true` দেখুন। প্রথমবার পোস্ট সংখ্যা অনুযায়ী কয়েক মিনিট ইনডেক্সিং চলবে।
 
-নিজের কম্পিউটারে চালাতে: `cp .env.example .env` (key বসান) → `pip install -r requirements.txt` → `uvicorn app.main:app --port 8000`।
+নিজের কম্পিউটারে চালাতে: `cp .env.example .env` (key বসান) → `pip install -r requirements.txt` → `uvicorn main:app --port 8000`।
 
 ### ৪. Blogger-এ বসানো
 **Theme → ⋮ → Edit HTML** → `</body>` ট্যাগের ঠিক আগে এটি পেস্ট করে সেভ করুন (ঠিকানা নিজেরটা দিন):
