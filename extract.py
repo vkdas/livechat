@@ -8,7 +8,7 @@ from urllib.parse import unquote, urljoin, urlparse
 from bs4 import BeautifulSoup
 
 import llm, net
-from config import (BLOG_URL, MAX_FILES_PER_POST, MAX_IMAGES_PER_POST, OCR_IMAGES,
+from config import (BLOG_URL, LINKED_PAGES, MAX_LINKED_PER_POST, MAX_FILES_PER_POST, MAX_IMAGES_PER_POST, OCR_IMAGES,
                      PDF_MAX_OCR_PAGES, PDF_OCR)
 
 log = logging.getLogger("extract")
@@ -151,3 +151,46 @@ def fetch_attachment(att: Attachment):
     if ct.startswith("text/plain") or ext in (".txt", ".md", ".csv"):
         return dict(url=att.url, title=name, kind="text", text=data.decode("utf-8", "ignore"))
     return None
+
+
+SKIP_HOSTS = ("facebook.com", "fb.com", "fb.me", "youtube.com", "youtu.be", "twitter.com", "x.com",
+              "instagram.com", "t.me", "telegram.me", "whatsapp.com", "wa.me", "linkedin.com",
+              "tiktok.com", "pinterest.com", "drive.google.com", "docs.google.com", "forms.gle", "bit.ly")
+
+
+def find_linked_pages(links: list[str]) -> list[str]:
+    """Outside pages the post itself points to (e.g. an official circular). Read as part of that post."""
+    if not LINKED_PAGES:
+        return []
+    out: list[str] = []
+    for u in links:
+        if not u.startswith("http"):
+            continue
+        host = _bare(urlparse(u).hostname or "")
+        ext = os.path.splitext(urlparse(u).path)[1].lower()
+        if not host or is_own_media_host(host) or ext in IMG_EXT:
+            continue
+        if any(host == h or host.endswith("." + h) for h in SKIP_HOSTS):
+            continue
+        if u not in out:
+            out.append(u)
+    return out[:MAX_LINKED_PER_POST]
+
+
+def fetch_linked(url: str, post_url: str, post_title: str):
+    """Text of a page linked from a post. Stored under the POST's address, so answers cite our own post."""
+    data, ct, final = net.get(url, max_mb=8, allow=lambda h: True)
+    if ct == "application/pdf" or final.lower().endswith(".pdf"):
+        text, title = extract_pdf(data), "PDF"
+    elif ct.startswith("text/html") or ct.startswith("application/xhtml"):
+        soup = BeautifulSoup(data, "lxml")
+        title = (soup.title.get_text(" ", strip=True) if soup.title else "") or urlparse(final).hostname
+        for t in soup(["nav", "header", "footer", "aside", "form"]):
+            t.decompose()
+        text, _, _ = html_to_text(str(soup), final)
+    else:
+        return None
+    text = text[:30000]
+    if len(text.strip()) < 100:
+        return None
+    return dict(url=post_url, title=f"{title} ({post_title})", kind="linked", text=f"[Linked page: {final}]\n{text}")

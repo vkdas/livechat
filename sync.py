@@ -28,6 +28,14 @@ def build_docs(entry):
         if d and d["text"] and d["text"].strip():
             d["title"] = f"{d['title']} ({entry.title})"
             docs.append(d)
+    for u in extract.find_linked_pages(links):
+        try:
+            d = extract.fetch_linked(u, entry.url, entry.title)
+        except Exception as exc:
+            log.warning("linked page %s failed: %s", u, exc)
+            continue
+        if d:
+            docs.append(d)
     return docs
 
 

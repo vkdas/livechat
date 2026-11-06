@@ -52,12 +52,12 @@ def check_rate(ip: str):
         today = time.strftime("%Y-%m-%d", time.gmtime())
         if _daily["d"] != today:
             _daily.update(d=today, n=0)
-        if _daily["n"] >= DAILY_CHAT_CAP:
+        if DAILY_CHAT_CAP and _daily["n"] >= DAILY_CHAT_CAP:
             raise HTTPException(429, "আজকের জন্য প্রশ্নের সীমা শেষ। আগামীকাল আবার চেষ্টা করুন।")
         q = _hits[ip]
         while q and now - q[0] > 3600:
             q.popleft()
-        if len(q) >= RATE_LIMIT_PER_HOUR:
+        if RATE_LIMIT_PER_HOUR and len(q) >= RATE_LIMIT_PER_HOUR:
             raise HTTPException(429, "এক ঘণ্টায় অনেক প্রশ্ন করা হয়েছে। একটু পরে আবার চেষ্টা করুন।")
         q.append(now)
         _daily["n"] += 1

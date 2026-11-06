@@ -3,7 +3,7 @@ import logging
 import re
 
 import llm
-from config import EMBED_DAILY_LIMIT, EMBEDDINGS, MIN_SIM, TOP_K
+from config import EMBED_DAILY_LIMIT, EMBEDDINGS, MIN_SIM, TOP_K, WEB_FALLBACK
 from store import store
 from textutil import has_bengali
 
@@ -35,6 +35,18 @@ def _not_found(question: str) -> dict:
             "sources": [], "followups": []}
 
 
+_SMALL = re.compile(
+    r"^\W*(hi+|hello+|hey+|good\s*(morning|afternoon|evening|night)|how are you|thanks?( you)?|thank u|bye|who are you|"
+    r"are you (a )?(human|bot|ai|real)|what('?s| is) your name|"
+    r"হ্যালো|হাই|হেলো|আসসালামু\s*আলাইকুম|সালাম|নমস্কার|কেমন আছ\S*|কি খবর|ধন্যবাদ|থ্যাংক\S*|শুভ\s*\S+|বিদায়|"
+    r"তুমি কে|আপনি কে|তোমার নাম কী?|আপনার নাম কী?|তুমি কি (মানুষ|বট|রোবট)|आप कैसे हैं|नमस्ते|धन्यवाद|مرحبا|السلام عليكم|شكرا)"
+    r"[\s\W]*(\S+[\s\W]*){0,3}$", re.I)
+
+
+def is_smalltalk(q: str) -> bool:
+    return len(q) <= 60 and bool(_SMALL.match(q.strip()))
+
+
 def ask(question: str, history: list[dict]) -> dict:
     q = question.strip()
     key = None
@@ -44,6 +56,12 @@ def ask(question: str, history: list[dict]) -> dict:
         if cached:
             store.log_question(q, cached["found"], True)
             return cached
+
+    if is_smalltalk(q):
+        try:
+            return {"found": True, "answer": llm.smalltalk(q, history), "sources": [], "followups": []}
+        except Exception as exc:
+            logging.getLogger("rag").warning("smalltalk failed: %s", str(exc)[:200])
 
     # follow-up questions are often short: add the previous user question for retrieval
     query_text = q
@@ -81,6 +99,12 @@ def ask(question: str, history: list[dict]) -> dict:
                 sources.append({"n": n, "title": h["title"], "url": h["url"], "kind": h["kind"]})
             result = {"found": True, "answer": ans.answer, "sources": sources,
                       "followups": [f for f in ans.followups if f.strip()][:3]}
+
+    if not result["found"] and WEB_FALLBACK:
+        try:  # not on the site: general help, without outside links
+            result = {"found": False, "answer": llm.general_answer(q, history), "sources": [], "followups": []}
+        except Exception as exc:
+            logging.getLogger("rag").warning("general fallback failed: %s", str(exc)[:200])
 
     store.log_question(q, result["found"], False)
     if key:

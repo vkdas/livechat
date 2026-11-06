@@ -312,10 +312,21 @@
     }
     log.appendChild(w);
   }
+  var greeted = false, greetTok = 0;
   function render() {
     lang = lastUserLang(); applyLang();
     log.innerHTML = '';
-    if (!msgs.length) { welcome(); return; }
+    if (!msgs.length) {
+      if (greeted) { welcome(); return; }
+      greeted = true;  // first time: the assistant "joins" after a short typing pause
+      var tb = typingBubble(), tok = ++greetTok;
+      setTimeout(function () {
+        if (tok !== greetTok || msgs.length) return;
+        tb.remove(); welcome(); toEnd();
+      }, 2500);
+      return;
+    }
+    greetTok++;
     msgs.forEach(function (m, i) {
       if (m.role === 'user') addUser(m.content); else addBot(m, i === msgs.length - 1);
     });
