@@ -39,25 +39,36 @@ _SMALL = re.compile(
     r"^\W*(hi+|hello+|hey+|good\s*(morning|afternoon|evening|night)|how are you|thanks?( you)?|thank u|bye|who are you|"
     r"are you (a )?(human|bot|ai|real)|what('?s| is) your name|"
     r"হ্যালো|হাই|হেলো|আসসালামু\s*আলাইকুম|সালাম|নমস্কার|কেমন আছ\S*|কি খবর|ধন্যবাদ|থ্যাংক\S*|শুভ\s*\S+|বিদায়|"
-    r"তুমি কী কী পারো|তোমার কাছে কি আছে|তোমার কাছে কী আছে|আপনার কাছে কি আছে|কিভাবে করব|কীভাবে করব|কি করতে পারো|কী করতে পারো|সাহায্য|help|what can you do|তুমি কে|আপনি কে|তোমার নাম কী?|আপনার নাম কী?|তুমি কি (মানুষ|বট|রোবট)|आप कैसे हैं|नमस्ते|धन्यवाद|مرحبا|السلام عليكم|شكرا)"
+    r"তুমি কী কী পারো|তোমার কাছে কি আছে|তোমার কাছে কী আছে|আপনার কাছে কি আছে|কিভাবে করব|কীভাবে করব|কি করতে পারো|কী করতে পারো|সাহায্য|help|what can you do|তুমি কে|আপনি কে|বয়স কত\S*|আপনার বয়স\S*|তোমার বয়স\S*|how old\S*|তোমার নাম কী?|আপনার নাম কী?|তুমি কি (মানুষ|বট|রোবট)|आप कैसे हैं|नमस्ते|धन्यवाद|مرحبا|السلام عليكم|شكرا)"
     r"[\s\W]*(\S+[\s\W]*){0,3}$", re.I)
 
 
-_NAME = re.compile(r"(who are you|your name|human|bot|real|তুমি কে|আপনি কে|নাম|মানুষ|বট|রোবট|कौन|नाम|اسمك|من أنت)", re.I)
+_IDENT = re.compile(r"(human|\bbot\b|robot|\bai\b|real person|মানুষ|বট|রোবট|এআই|যন্ত্র|इंसान|रोबोट|إنسان|روبوت)", re.I)
+_AGE = re.compile(r"(how old|\bage\b|বয়স|उम्र|عمرك)", re.I)
+_NAME = re.compile(r"(who are you|your name|তুমি কে|আপনি কে|নাম|कौन|नाम|اسمك|من أنت)", re.I)
 CANNED = {
-    "bn": ("হ্যালো! আমি ভালো আছি, ধন্যবাদ। আপনি কেমন আছেন? চাকরির সার্কুলার, শেষ তারিখ বা আবেদনের নিয়মে কী জানতে চান, বলুন।",
-           "আমি KaKoli Ray, BD JOBS INFO-এর ভার্চুয়াল সহকারী, অর্থাৎ একটি এআই-চালিত সহকারী, মানুষ নই। চাকরির সার্কুলার, শেষ তারিখ ও আবেদনের নিয়মে আপনাকে সাহায্য করতে পারি।"),
-    "en": ("Hello! I'm doing well, thank you. How are you? Tell me what you'd like to know about job circulars, deadlines or how to apply.",
-           "I'm KaKoli Ray, the virtual assistant of BD JOBS INFO. I'm an AI-powered assistant, not a human. I can help with job circulars, deadlines and how to apply."),
-    "hi": ("नमस्ते! मैं ठीक हूँ, धन्यवाद। आप कैसे हैं? नौकरी के सर्कुलर, अंतिम तिथि या आवेदन के बारे में पूछिए।",
-           "मैं KaKoli Ray, BD JOBS INFO की वर्चुअल सहायक हूँ, यानी एक एआई-संचालित सहायक, इंसान नहीं। मैं नौकरी के सर्कुलर और आवेदन में मदद कर सकती हूँ।"),
-    "ar": ("مرحبًا! أنا بخير، شكرًا. كيف حالك؟ اسألني عن الوظائف والمواعيد وطريقة التقديم.",
-           "أنا KaKoli Ray، المساعد الافتراضي لموقع BD JOBS INFO، مساعد يعمل بالذكاء الاصطناعي ولست إنسانًا. يمكنني مساعدتك في الوظائف وطريقة التقديم."),
+    "bn": {"hello": "হ্যালো! আমি ভালো আছি, ধন্যবাদ। আপনি কেমন আছেন? চাকরির সার্কুলার, শেষ তারিখ বা আবেদনের নিয়মে কী জানতে চান, বলুন।",
+           "name": "আমি KaKoli Ray, BD JOBS INFO-এর সহকারী। চাকরির সার্কুলার, শেষ তারিখ ও আবেদনের নিয়মে আপনাকে সাহায্য করতে পারি।",
+           "age": "আমার বয়স বলে কিছু নেই, আমি BD JOBS INFO-এর সহকারী। চাকরির কোন তথ্য জানতে চান, বলুন।",
+           "ident": "আমি একটি এআই-চালিত ভার্চুয়াল সহকারী, মানুষ নই। তবে চাকরির সার্কুলার, শেষ তারিখ ও আবেদনের নিয়মে আপনাকে সাহায্য করতে পারি।"},
+    "en": {"hello": "Hello! I'm doing well, thank you. How are you? Tell me what you'd like to know about job circulars, deadlines or how to apply.",
+           "name": "I'm KaKoli Ray, the assistant of BD JOBS INFO. I can help with job circulars, deadlines and how to apply.",
+           "age": "I don't have an age. I'm the assistant of BD JOBS INFO. What would you like to know about jobs?",
+           "ident": "I'm an AI-powered virtual assistant, not a human. I can still help with job circulars, deadlines and how to apply."},
+    "hi": {"hello": "नमस्ते! मैं ठीक हूँ, धन्यवाद। आप कैसे हैं? नौकरी के सर्कुलर, अंतिम तिथि या आवेदन के बारे में पूछिए।",
+           "name": "मैं KaKoli Ray, BD JOBS INFO की सहायक हूँ। नौकरी के सर्कुलर और आवेदन में मदद कर सकती हूँ।",
+           "age": "मेरी कोई उम्र नहीं है, मैं BD JOBS INFO की सहायक हूँ। नौकरी के बारे में क्या जानना चाहते हैं?",
+           "ident": "मैं एक एआई-संचालित वर्चुअल सहायक हूँ, इंसान नहीं। फिर भी नौकरी के सर्कुलर और आवेदन में मदद कर सकती हूँ।"},
+    "ar": {"hello": "مرحبًا! أنا بخير، شكرًا. كيف حالك؟ اسألني عن الوظائف والمواعيد وطريقة التقديم.",
+           "name": "أنا KaKoli Ray، مساعدة موقع BD JOBS INFO. يمكنني مساعدتك في الوظائف وطريقة التقديم.",
+           "age": "ليس لي عمر، أنا مساعدة موقع BD JOBS INFO. ماذا تريد أن تعرف عن الوظائف؟",
+           "ident": "أنا مساعد افتراضي يعمل بالذكاء الاصطناعي ولست إنسانًا، لكن يمكنني مساعدتك في الوظائف وطريقة التقديم."},
 }
 
 
 def canned_smalltalk(q: str) -> str:
-    return CANNED[detect_lang(q)][1 if _NAME.search(q) else 0]
+    kind = "ident" if _IDENT.search(q) else "age" if _AGE.search(q) else "name" if _NAME.search(q) else "hello"
+    return CANNED[detect_lang(q)][kind]
 
 
 def is_smalltalk(q: str) -> bool:
