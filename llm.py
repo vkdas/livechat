@@ -22,11 +22,19 @@ def client():
     return _client
 
 
+def is_daily_quota(exc) -> bool:
+    """True when Google says the free requests-per-day limit is used up (waiting a few seconds will not help)."""
+    s = str(exc).lower().replace(" ", "")
+    return ("429" in s or "resource_exhausted" in s) and ("perday" in s or "perdayper" in s)
+
+
 def _retry(fn, tries=5):
     for i in range(tries):
         try:
             return fn()
         except Exception as exc:
+            if is_daily_quota(exc):
+                raise
             msg = str(exc)
             transient = any(x in msg for x in ("429", "500", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE", "timed out"))
             if i == tries - 1 or not transient:

@@ -23,6 +23,10 @@ CHAT_FALLBACK_MODEL = os.getenv("CHAT_FALLBACK_MODEL", "gemini-3.5-flash-lite")
 OCR_MODEL = os.getenv("OCR_MODEL", "gemini-3.5-flash-lite")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "gemini-embedding-001")
 EMBED_DIM = _int("EMBED_DIM", 768)
+# auto = keyword search first, meaning-based vectors added within the free daily quota; off = keyword search only
+EMBEDDINGS = os.getenv("EMBEDDINGS", "auto").lower()
+EMBED_DAILY_LIMIT = _int("EMBED_DAILY_LIMIT", 1000)   # Google free tier: embedding requests per day
+EMBED_CHAT_RESERVE = _int("EMBED_CHAT_RESERVE", 150)  # kept free for visitors' questions
 
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
 ALLOWED_ORIGINS = [
@@ -45,8 +49,8 @@ PDF_MAX_OCR_PAGES = _int("PDF_MAX_OCR_PAGES", 40)
 MAX_CHUNKS_PER_DOC = _int("MAX_CHUNKS_PER_DOC", 150)
 
 # Retrieval
-CHUNK_CHARS = _int("CHUNK_CHARS", 1200)
-CHUNK_OVERLAP = _int("CHUNK_OVERLAP", 150)
+CHUNK_CHARS = _int("CHUNK_CHARS", 1800)
+CHUNK_OVERLAP = _int("CHUNK_OVERLAP", 120)
 TOP_K = _int("TOP_K", 6)
 MIN_SIM = _float("MIN_SIM", 0.35)
 

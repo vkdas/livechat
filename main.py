@@ -147,6 +147,11 @@ def admin_stats():
     return store.stats()
 
 
+@app.get("/admin/export", dependencies=[Depends(admin_auth)])
+def admin_export():
+    return FileResponse(store.snapshot(), filename="index.db", media_type="application/octet-stream")
+
+
 @app.post("/admin/reindex", dependencies=[Depends(admin_auth)])
 def admin_reindex(force: bool = False):
     if sync.state["running"]:

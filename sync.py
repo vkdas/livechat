@@ -4,13 +4,14 @@ import threading
 import time
 
 import crawler, extract, llm
-from config import CHUNK_CHARS, CHUNK_OVERLAP, MAX_CHUNKS_PER_DOC, OCR_SKIP_IF_TEXT_CHARS, SYNC_INTERVAL_MIN
-from store import store
+from config import (CHUNK_CHARS, CHUNK_OVERLAP, EMBEDDINGS, EMBED_CHAT_RESERVE, EMBED_DAILY_LIMIT,
+                     MAX_CHUNKS_PER_DOC, OCR_SKIP_IF_TEXT_CHARS, SYNC_INTERVAL_MIN)
+from store import chunk_hash, store
 from textutil import chunk_text
 
 log = logging.getLogger("sync")
 _lock = threading.Lock()
-state = {"running": False, "last_ts": 0.0}
+state = {"running": False, "last_ts": 0.0, "failed": 0, "paused": False}
 
 
 def build_docs(entry):
@@ -25,24 +26,56 @@ def build_docs(entry):
             log.warning("attachment %s failed: %s", att.url, exc)
             continue
         if d and d["text"] and d["text"].strip():
-            if d["kind"] != "web":
-                d["title"] = f"{d['title']} ({entry.title})"
+            d["title"] = f"{d['title']} ({entry.title})"
             docs.append(d)
     return docs
 
 
-def embed_docs(docs):
+def make_chunks(post_url, docs):
+    """Cut documents into chunks. Vectors are reused from earlier runs when the text is unchanged;
+    new chunks get theirs later (backfill), so keyword search works immediately."""
     items = []
     for d in docs:
-        pieces = chunk_text(d["text"], CHUNK_CHARS, CHUNK_OVERLAP)[:MAX_CHUNKS_PER_DOC]
-        for c in pieces:
+        for c in chunk_text(d["text"], CHUNK_CHARS, CHUNK_OVERLAP)[:MAX_CHUNKS_PER_DOC]:
             items.append(dict(url=d["url"], title=d["title"], kind=d["kind"], text=c))
-    if not items:
-        return []
-    vecs = llm.embed([f"{i['title']}\n{i['text']}" for i in items])
-    for item, v in zip(items, vecs):
-        item["emb"] = v
+    store.stash_post_embs(post_url)
+    cached = store.emb_cache_get([chunk_hash(i["title"], i["text"]) for i in items])
+    for i in items:
+        i["emb"] = cached.get(chunk_hash(i["title"], i["text"]))
     return items
+
+
+def backfill():
+    """Add meaning-based vectors for chunks that have none, without passing the free daily quota.
+    Returns (number embedded, reason it stopped)."""
+    if EMBEDDINGS == "off":
+        return 0, "বন্ধ"
+    done = since_reload = 0
+    while True:
+        allowed = EMBED_DAILY_LIMIT - EMBED_CHAT_RESERVE - store.embed_used()
+        if allowed <= 0:
+            state["paused"] = True
+            return done, "আজকের কোটা শেষ, কাল আবার চলবে"
+        rows = store.pending_chunks(min(50, allowed))
+        if not rows:
+            state["paused"] = False
+            return done, "সব শেষ"
+        try:
+            vecs = llm.embed([f"{t}\n{x}" for _, t, x in rows])
+        except Exception as exc:
+            if llm.is_daily_quota(exc):
+                store.set_embed_used(EMBED_DAILY_LIMIT)
+                state["paused"] = True
+                return done, "Google-এর দৈনিক সীমা শেষ"
+            log.exception("embedding failed")
+            return done, "ত্রুটি, পরে আবার চেষ্টা হবে"
+        store.set_embeddings([r[0] for r in rows], vecs)
+        store.add_embed_used(len(rows))
+        done += len(rows)
+        since_reload += len(rows)
+        if since_reload >= 200:
+            store.reload()
+            since_reload = 0
 
 
 def run(force: bool = False) -> str:
@@ -56,35 +89,28 @@ def run(force: bool = False) -> str:
             store.set_meta("last_sync_result", msg)
             return msg
         urls = {e.url for e in entries}
-        changed = failed = consecutive = cooldowns = 0
+        changed = failed = 0
         for e in entries:
             h = hashlib.sha1(f"{e.title}|{e.updated}|{e.content}".encode()).hexdigest()
             if not force and store.post_hash(e.url) == h:
                 continue
             try:
-                chunks = embed_docs(build_docs(e))
-                store.replace_post(e.url, h, chunks)
+                store.replace_post(e.url, h, make_chunks(e.url, build_docs(e)))
                 changed += 1
-                consecutive = 0
                 if changed % 10 == 0:
                     store.reload()  # chat starts answering from what is already read
             except Exception:
-                log.exception("failed to index %s", e.url)
+                log.exception("failed to read %s", e.url)
                 failed += 1
-                consecutive += 1
-                if consecutive >= 3:
-                    cooldowns += 1
-                    if cooldowns > 4:
-                        log.error("too many failures (quota?), stopping this run; failed posts are retried soon")
-                        break
-                    log.warning("rate limit? waiting 90 s before continuing")
-                    time.sleep(90)
-                    consecutive = 0
         state["failed"] = failed
         removed = store.delete_posts_not_in(urls)
         if changed or removed:
             store.reload()
-        msg = f"নতুন/বদলানো: {changed}, ব্যর্থ: {failed}, মোছা: {removed}, মোট পোস্ট/পেজ: {len(urls)}"
+        embedded, why = backfill()
+        if embedded:
+            store.reload()
+        msg = (f"নতুন/বদলানো: {changed}, ব্যর্থ: {failed}, মোছা: {removed}, মোট পোস্ট/পেজ: {len(urls)} | "
+               f"এমবেডিং: +{embedded} ({why}), বাকি চাংক: {store.pending_count()}")
         store.set_meta("last_sync", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + " UTC")
         store.set_meta("last_sync_result", msg)
         log.info(msg)
@@ -116,4 +142,10 @@ def loop():
     time.sleep(2)
     while True:
         _safe_run()
-        time.sleep((10 if state.get("failed") else SYNC_INTERVAL_MIN) * 60)  # unfinished posts: retry in 10 min
+        if state["paused"]:
+            wait = 30  # daily quota used up: look again in half an hour
+        elif state["failed"]:
+            wait = 10  # some posts could not be read: try again soon
+        else:
+            wait = SYNC_INTERVAL_MIN
+        time.sleep(wait * 60)

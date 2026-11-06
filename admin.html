@@ -24,6 +24,7 @@
     <button id="go">দেখুন</button>
     <button id="re" class="sec">এখনই আপডেট (নতুন পোস্ট)</button>
     <button id="reall" class="sec">সব নতুন করে ইনডেক্স</button>
+    <button id="exp" class="sec">ইনডেক্সের ব্যাকআপ ডাউনলোড</button>
     <div id="msg" class="muted"></div>
   </div>
   <div id="out"></div>
@@ -44,9 +45,9 @@ async function load(){
     const d=await api('/admin/stats'); $('msg').textContent='';
     $('out').innerHTML=
       '<div class="grid">'+
-      [['পোস্ট/পেজ',d.posts],['চাংক',d.chunks],['৩০ দিনের প্রশ্ন',d.questions_30d],['👍',d.feedback.up],['👎',d.feedback.down]]
+      [['পোস্ট/পেজ',d.posts],['চাংক (এমবেডিংসহ)',d.chunks+' ('+d.embedded+')'],['৩০ দিনের প্রশ্ন',d.questions_30d],['👍',d.feedback.up],['👎',d.feedback.down]]
         .map(x=>'<div class="card"><div class="num">'+x[1]+'</div><div class="muted">'+x[0]+'</div></div>').join('')+'</div>'+
-      '<div class="card muted">শেষ সিঙ্ক: '+esc(d.last_sync||'—')+'<br>'+esc(d.last_sync_result||'')+(d.last_chat_error?'<br><b>শেষ চ্যাট ত্রুটি:</b> '+esc(d.last_chat_error):'')+'</div>'+
+      '<div class="card muted">শেষ সিঙ্ক: '+esc(d.last_sync||'—')+'<br>'+esc(d.last_sync_result||'')+'<br>আজ এমবেডিং ব্যবহার: '+d.embed_used+'/'+d.embed_limit+', এমবেডিং বাকি: '+d.pending+(d.last_chat_error?'<br><b>শেষ চ্যাট ত্রুটি:</b> '+esc(d.last_chat_error):'')+'</div>'+
       '<h2>সবচেয়ে বেশি করা প্রশ্ন</h2><div class="card">'+table(d.top_questions,['q','count'])+'</div>'+
       '<h2>উত্তর না পাওয়া প্রশ্ন (নতুন পোস্টের আইডিয়া)</h2><div class="card">'+table(d.unanswered,['q','count'])+'</div>'+
       '<h2>সাম্প্রতিক 👎 উত্তর</h2><div class="card">'+table(d.recent_downvotes,['q','answer'])+'</div>';
@@ -56,6 +57,7 @@ async function reindex(force){
   try{const r=await api('/admin/reindex?force='+force,'POST');$('msg').textContent=r.started?'ইনডেক্সিং শুরু হয়েছে, কিছুক্ষণ পর রিফ্রেশ করুন':'আগের কাজ চলছে'}
   catch(e){$('msg').textContent='ত্রুটি: '+e.message}
 }
+$('exp').onclick=async()=>{try{const r=await fetch('/admin/export',{headers:{Authorization:'Bearer '+$('tok').value}});if(!r.ok)throw new Error(r.status);const b=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='index.db';a.click();}catch(e){$('msg').textContent='ত্রুটি: '+e.message}};
 $('go').onclick=load; $('re').onclick=()=>reindex(false); $('reall').onclick=()=>reindex(true);
 if($('tok').value) load();
 </script>

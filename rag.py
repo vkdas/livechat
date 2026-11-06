@@ -1,8 +1,9 @@
 import hashlib
+import logging
 import re
 
 import llm
-from config import MIN_SIM, TOP_K
+from config import EMBED_DAILY_LIMIT, EMBEDDINGS, MIN_SIM, TOP_K
 from store import store
 from textutil import has_bengali
 
@@ -51,7 +52,15 @@ def ask(question: str, history: list[dict]) -> dict:
         if prev:
             query_text = f"{prev[-1]} {q}"
 
-    qvec = llm.embed([query_text], query=True)[0]
+    qvec = None
+    if EMBEDDINGS != "off" and store.embed_available():
+        try:
+            qvec = llm.embed([query_text], query=True)[0]
+            store.add_embed_used(1)
+        except Exception as exc:  # quota or network: fall back to keyword search instead of failing
+            if llm.is_daily_quota(exc):
+                store.set_embed_used(EMBED_DAILY_LIMIT)
+            logging.getLogger("rag").warning("query embedding skipped: %s", str(exc)[:200])
     hits = store.search(qvec, query_text, TOP_K)
 
     if not hits or (max(h["sem"] for h in hits) < MIN_SIM and max(h["kw"] for h in hits) == 0):
