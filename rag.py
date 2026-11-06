@@ -43,6 +43,23 @@ _SMALL = re.compile(
     r"[\s\W]*(\S+[\s\W]*){0,3}$", re.I)
 
 
+_NAME = re.compile(r"(who are you|your name|human|bot|real|তুমি কে|আপনি কে|নাম|মানুষ|বট|রোবট|कौन|नाम|اسمك|من أنت)", re.I)
+CANNED = {
+    "bn": ("হ্যালো! আমি ভালো আছি, ধন্যবাদ। আপনি কেমন আছেন? চাকরির সার্কুলার, শেষ তারিখ বা আবেদনের নিয়মে কী জানতে চান, বলুন।",
+           "আমি KaKoli Ray, BD JOBS INFO-এর ভার্চুয়াল সহকারী, অর্থাৎ একটি এআই-চালিত সহকারী, মানুষ নই। চাকরির সার্কুলার, শেষ তারিখ ও আবেদনের নিয়মে আপনাকে সাহায্য করতে পারি।"),
+    "en": ("Hello! I'm doing well, thank you. How are you? Tell me what you'd like to know about job circulars, deadlines or how to apply.",
+           "I'm KaKoli Ray, the virtual assistant of BD JOBS INFO. I'm an AI-powered assistant, not a human. I can help with job circulars, deadlines and how to apply."),
+    "hi": ("नमस्ते! मैं ठीक हूँ, धन्यवाद। आप कैसे हैं? नौकरी के सर्कुलर, अंतिम तिथि या आवेदन के बारे में पूछिए।",
+           "मैं KaKoli Ray, BD JOBS INFO की वर्चुअल सहायक हूँ, यानी एक एआई-संचालित सहायक, इंसान नहीं। मैं नौकरी के सर्कुलर और आवेदन में मदद कर सकती हूँ।"),
+    "ar": ("مرحبًا! أنا بخير، شكرًا. كيف حالك؟ اسألني عن الوظائف والمواعيد وطريقة التقديم.",
+           "أنا KaKoli Ray، المساعد الافتراضي لموقع BD JOBS INFO، مساعد يعمل بالذكاء الاصطناعي ولست إنسانًا. يمكنني مساعدتك في الوظائف وطريقة التقديم."),
+}
+
+
+def canned_smalltalk(q: str) -> str:
+    return CANNED[detect_lang(q)][1 if _NAME.search(q) else 0]
+
+
 def is_smalltalk(q: str) -> bool:
     return len(q) <= 60 and bool(_SMALL.match(q.strip()))
 
@@ -62,6 +79,7 @@ def ask(question: str, history: list[dict]) -> dict:
             return {"found": True, "answer": llm.smalltalk(q, history), "sources": [], "followups": []}
         except Exception as exc:
             logging.getLogger("rag").warning("smalltalk failed: %s", str(exc)[:200])
+            return {"found": True, "answer": canned_smalltalk(q), "sources": [], "followups": []}
 
     # follow-up questions are often short: add the previous user question for retrieval
     query_text = q
