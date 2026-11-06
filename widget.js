@@ -10,7 +10,7 @@
     return v == null || v === '' ? d : v;
   };
   var API = attr('api', s && s.src ? new URL(s.src).origin : '');
-  var TITLE = attr('title', 'Kakoli Rani');
+  var TITLE = attr('title', 'KaKoli Ray');
   var SUB = attr('subtitle', 'Assistant, BD JOBS INFO');
   var COLOR = attr('color', '#0E5A45');
   var THEME = attr('theme', 'auto'); // auto | light | dark
@@ -20,44 +20,40 @@
   /* ---------- interface text: English by default, then follows the visitor's language ---------- */
   var I18N = {
     en: {
-      greet: 'Hi, I\u2019m Kakoli Rani, the assistant of BD JOBS INFO. Ask me about job circulars, deadlines and how to apply.',
+      greet: 'Hi, I\u2019m {name}, the assistant of BD JOBS INFO. Ask me about job circulars, deadlines and how to apply.',
       starters: ['Which circulars were published this week?', 'Which applications close soon?', 'What documents do I need to apply?'],
       open: 'Open chat', close: 'Close chat', fresh: 'New conversation',
       ph: 'Type your question', ask: 'Question', send: 'Send', mic: 'Ask by voice',
-      foot: 'AI can make mistakes. Check the sources before you decide.',
       src: 'Sources', retry: 'Try again', up: 'Helpful', down: 'Not helpful', thanks: 'Thanks',
       typing: 'Writing the answer', noans: 'Could not get an answer.',
       net: 'Connection failed. Check your internet and try again.',
       kinds: { post: 'Post', page: 'Page', pdf: 'PDF', image: 'Image', docx: 'Word file', text: 'File' }
     },
     bn: {
-      greet: 'হ্যালো, আমি Kakoli Rani, BD JOBS INFO-এর অ্যাসিস্ট্যান্ট। চাকরির সার্কুলার, শেষ তারিখ বা আবেদনের নিয়ম সম্পর্কে জিজ্ঞাসা করুন।',
+      greet: 'হ্যালো, আমি {name}, BD JOBS INFO-এর অ্যাসিস্ট্যান্ট। চাকরির সার্কুলার, শেষ তারিখ বা আবেদনের নিয়ম সম্পর্কে জিজ্ঞাসা করুন।',
       starters: ['এই সপ্তাহের নতুন সার্কুলার কোনগুলো?', 'কোন আবেদনের শেষ তারিখ কাছে?', 'আবেদনে কী কী কাগজ লাগে?'],
       open: 'চ্যাট খুলুন', close: 'চ্যাট বন্ধ করুন', fresh: 'নতুন কথোপকথন',
       ph: 'প্রশ্ন লিখুন', ask: 'প্রশ্ন', send: 'পাঠান', mic: 'কথা বলে প্রশ্ন করুন',
-      foot: 'এআই ভুল করতে পারে। সিদ্ধান্তের আগে সূত্র দেখে নিন।',
       src: 'সূত্র', retry: 'আবার চেষ্টা করুন', up: 'কাজে লেগেছে', down: 'কাজে লাগেনি', thanks: 'ধন্যবাদ',
       typing: 'উত্তর তৈরি হচ্ছে', noans: 'উত্তর আনা যায়নি।',
       net: 'সংযোগ পাওয়া যায়নি। ইন্টারনেট ঠিক আছে কি না দেখে আবার চেষ্টা করুন।',
       kinds: { post: 'পোস্ট', page: 'পেজ', pdf: 'PDF', image: 'ছবি', docx: 'Word ফাইল', text: 'ফাইল' }
     },
     hi: {
-      greet: 'नमस्ते, मैं Kakoli Rani हूँ, BD JOBS INFO की असिस्टेंट। नौकरी सर्कुलर, अंतिम तिथि या आवेदन के तरीके के बारे में पूछें।',
+      greet: 'नमस्ते, मैं {name} हूँ, BD JOBS INFO की असिस्टेंट। नौकरी सर्कुलर, अंतिम तिथि या आवेदन के तरीके के बारे में पूछें।',
       starters: [],
       open: 'चैट खोलें', close: 'चैट बंद करें', fresh: 'नई बातचीत',
       ph: 'अपना प्रश्न लिखें', ask: 'प्रश्न', send: 'भेजें', mic: 'बोलकर पूछें',
-      foot: 'एआई गलती कर सकता है। निर्णय से पहले स्रोत देख लें।',
       src: 'स्रोत', retry: 'फिर कोशिश करें', up: 'उपयोगी', down: 'उपयोगी नहीं', thanks: 'धन्यवाद',
       typing: 'उत्तर तैयार हो रहा है', noans: 'उत्तर नहीं मिल सका।',
       net: 'कनेक्शन नहीं हो सका। इंटरनेट जाँचकर फिर कोशिश करें।',
       kinds: { post: 'पोस्ट', page: 'पेज', pdf: 'PDF', image: 'चित्र', docx: 'Word फ़ाइल', text: 'फ़ाइल' }
     },
     ar: {
-      greet: 'مرحبًا، أنا Kakoli Rani، مساعدة BD JOBS INFO. اسألني عن إعلانات التوظيف والمواعيد النهائية وطريقة التقديم.',
+      greet: 'مرحبًا، أنا {name}، مساعدة BD JOBS INFO. اسألني عن إعلانات التوظيف والمواعيد النهائية وطريقة التقديم.',
       starters: [],
       open: 'فتح الدردشة', close: 'إغلاق الدردشة', fresh: 'محادثة جديدة',
       ph: 'اكتب سؤالك', ask: 'السؤال', send: 'إرسال', mic: 'اسأل بالصوت',
-      foot: 'قد يخطئ الذكاء الاصطناعي. تحقق من المصادر قبل أن تقرر.',
       src: 'المصادر', retry: 'حاول مرة أخرى', up: 'مفيد', down: 'غير مفيد', thanks: 'شكرًا',
       typing: 'جارٍ كتابة الإجابة', noans: 'تعذر الحصول على إجابة.',
       net: 'فشل الاتصال. تحقق من الإنترنت وحاول مرة أخرى.',
@@ -78,7 +74,7 @@
   if (attr('font', 'on') !== 'off' && !document.getElementById('livechat-font')) {
     var lk = document.createElement('link');
     lk.id = 'livechat-font'; lk.rel = 'stylesheet';
-    lk.href = 'https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap';
+    lk.href = 'https://fonts.maateen.me/solaiman-lipi/font.css';
     document.head.appendChild(lk);
   }
   var FONT_URL = attr('font-url', '');
@@ -142,7 +138,7 @@
     'button,input{font:inherit;color:inherit}' +
     'button{cursor:pointer;background:none;border:0}' +
     ':focus-visible{outline:2px solid var(--link);outline-offset:2px}' +
-    '.fab,.panel{font-family:"LiveChatBn","Hind Siliguri","Noto Sans Bengali",system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}' +
+    '.fab,.panel{font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,"LiveChatBn","SolaimanLipi","Noto Sans Bengali","Nirmala UI",sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}' +
     '.fab{position:fixed;right:18px;bottom:18px;width:58px;height:58px;border-radius:50%;background:var(--green);color:#fff;display:grid;place-items:center;box-shadow:0 6px 20px rgba(10,30,24,.35);z-index:2147483000;transition:transform .15s}' +
     '.fab:hover{transform:scale(1.05)}.fab svg{grid-area:1/1;transition:opacity .15s,transform .2s}' +
     '.fab .i-down{opacity:0;transform:rotate(-90deg)}.fab[aria-expanded=true] .i-chat{opacity:0;transform:rotate(90deg)}.fab[aria-expanded=true] .i-down{opacity:1;transform:none}' +
@@ -184,7 +180,7 @@
     '.retry{margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:5px 11px;font-size:13.5px;color:var(--link);background:var(--surface)}.retry:hover{border-color:var(--green)}' +
     '.dots{display:inline-flex;gap:4px;align-items:center;height:1.6em}.dots i{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:lcb 1s infinite ease-in-out}' +
     '.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}@keyframes lcb{0%,60%,100%{opacity:.35;transform:none}30%{opacity:1;transform:translateY(-3px)}}' +
-    'form{display:flex;gap:8px;padding:11px 12px 6px;background:var(--surface)}' +
+    'form{display:flex;gap:8px;padding:11px 12px 12px;background:var(--surface)}' +
     '.field{flex:1;min-width:0;display:flex;align-items:center;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding-inline-end:4px}' +
     '.field:focus-within{border-color:var(--green);box-shadow:0 0 0 3px rgba(14,90,69,.16)}' +
     'input{flex:1;min-width:0;background:none;border:0;outline:0;padding:11px 6px 11px 13px;font-size:16px}input::placeholder{color:var(--muted)}' +
@@ -192,7 +188,7 @@
     '.mic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--muted)}.mic:hover{background:var(--line);color:var(--ink)}' +
     '.mic.on{background:var(--danger);color:#fff;animation:lcp 1.2s infinite}@keyframes lcp{50%{opacity:.65}}' +
     '.send{width:44px;height:44px;flex:none;border-radius:12px;background:var(--green);color:#fff;display:grid;place-items:center;transition:opacity .12s}.send:disabled{opacity:.4;cursor:default}' +
-    '.ft{font-size:12px;color:var(--muted);text-align:center;padding:2px 12px 11px;background:var(--surface)}' +
+    '.ft{font-size:12px;color:var(--muted);text-align:center;padding:0 12px 11px;background:var(--surface)}' +
     '@media (max-width:480px){.panel{right:8px;left:8px;width:auto;bottom:80px;height:min(640px,calc(100vh - 96px));height:min(640px,calc(100dvh - 96px))}.fab{right:12px;bottom:12px}}' +
     '@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}';
 
@@ -228,7 +224,7 @@
     var t = T();
     $('.st').textContent = SUB;
     input.placeholder = t.ph; input.setAttribute('aria-label', t.ask);
-    $('.ft').textContent = t.foot;
+    var ft = $('.ft'); ft.textContent = attr('footer', ''); ft.style.display = ft.textContent ? '' : 'none';
     setLabel(fab, panel.hidden ? t.open : t.close);
     setLabel($('.new'), t.fresh); setLabel($('.x'), t.close);
     setLabel(mic, t.mic); setLabel(sendBtn, t.send);
@@ -301,7 +297,7 @@
   }
   function welcome() {
     var t = T(), w = document.createElement('div'); w.className = 'wl';
-    var greet = lang === 'en' ? attr('greeting', t.greet) : t.greet;
+    var greet = (lang === 'en' ? attr('greeting', t.greet) : t.greet).replace('{name}', TITLE);
     var custom = attr('starters', '');
     var starters = lang === 'en' && custom ? custom.split('|').filter(Boolean).slice(0, 4) : t.starters;
     w.innerHTML = '<p>' + esc(greet) + '</p>';

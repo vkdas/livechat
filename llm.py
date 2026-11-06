@@ -7,7 +7,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
-from config import CHAT_MODEL, EMBED_DIM, EMBED_MODEL, GEMINI_API_KEY
+from config import CHAT_FALLBACK_MODEL, CHAT_MODEL, EMBED_DIM, EMBED_MODEL, GEMINI_API_KEY, OCR_MODEL
 
 log = logging.getLogger("llm")
 _client = None
@@ -31,7 +31,21 @@ def _retry(fn, tries=5):
             transient = any(x in msg for x in ("429", "500", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE", "timed out"))
             if i == tries - 1 or not transient:
                 raise
-            time.sleep(min(60, 2 ** i * 3))
+            time.sleep(min(70, 6 * 2 ** i))  # 6, 12, 24, 48 s: rate limits need real pauses
+
+
+def _generate(models, **kw):
+    """Try each model in turn (e.g. the main one, then a lighter fallback)."""
+    models = list(dict.fromkeys(m for m in models if m))
+    last = None
+    for i, m in enumerate(models):
+        try:
+            return _retry(lambda: client().models.generate_content(model=m, **kw),
+                          tries=3 if i < len(models) - 1 else 5)
+        except Exception as exc:
+            last = exc
+            log.warning("model %s failed: %s", m, str(exc)[:300])
+    raise last
 
 
 def embed(texts: list[str], query: bool = False) -> np.ndarray:
@@ -60,9 +74,8 @@ OCR_IMG = ("Extract all text in this image exactly as written (Bangla and/or Eng
 
 def ocr(data: bytes, mime: str) -> str:
     prompt = OCR_PDF if mime == "application/pdf" else OCR_IMG
-    res = _retry(lambda: client().models.generate_content(
-        model=CHAT_MODEL,
-        contents=[types.Part.from_bytes(data=data, mime_type=mime), prompt]))
+    res = _generate([OCR_MODEL, CHAT_FALLBACK_MODEL],
+                    contents=[types.Part.from_bytes(data=data, mime_type=mime), prompt])
     text = (res.text or "").strip()
     return "" if text.upper().startswith("EMPTY") else text
 
@@ -74,7 +87,7 @@ class Answer(BaseModel):
     followups: list[str]
 
 
-SYSTEM = """You are Kakoli Rani, the AI assistant of the website BD JOBS INFO. If a visitor asks, say plainly that you are an AI assistant, never claim to be a human. Answer the visitor's question using ONLY the numbered items inside <context>.
+SYSTEM = """You are KaKoli Ray, the AI assistant of the website BD JOBS INFO. If a visitor asks, say plainly that you are an AI assistant, never claim to be a human. Answer the visitor's question using ONLY the numbered items inside <context>.
 
 Rules:
 - Default language is English. Reply in the language of the visitor's latest message, whichever it is (Bangla -> Bangla, English -> English, Hindi -> Hindi, Arabic -> Arabic, and so on). Romanized text (e.g. Bangla typed in English letters, "banglish") gets a reply in the same style. If the visitor switches language, switch with them. If the language of the message is unclear, reply in English. The context may be in a different language than the question: translate the facts, keep names, numbers, dates and links exact.
@@ -92,11 +105,10 @@ def generate_answer(question: str, history: list[dict], hits: list[dict]) -> Ans
         f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content'][:600]}" for m in history[-6:])
     prompt = (f"<context>\n{ctx}\n</context>\n\n<conversation>\n{hist}\n</conversation>\n\n"
               f"<question>\n{question}\n</question>")
-    res = _retry(lambda: client().models.generate_content(
-        model=CHAT_MODEL, contents=prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=SYSTEM, response_mime_type="application/json",
-            response_schema=Answer, temperature=0.2)))
+    res = _generate([CHAT_MODEL, CHAT_FALLBACK_MODEL], contents=prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=SYSTEM, response_mime_type="application/json",
+                        response_schema=Answer, temperature=0.2))
     if getattr(res, "parsed", None):
         return res.parsed
     return Answer(**json.loads(res.text))

@@ -4,7 +4,7 @@ import threading
 import time
 
 import crawler, extract, llm
-from config import CHUNK_CHARS, CHUNK_OVERLAP, MAX_CHUNKS_PER_DOC, SYNC_INTERVAL_MIN
+from config import CHUNK_CHARS, CHUNK_OVERLAP, MAX_CHUNKS_PER_DOC, OCR_SKIP_IF_TEXT_CHARS, SYNC_INTERVAL_MIN
 from store import store
 from textutil import chunk_text
 
@@ -18,7 +18,7 @@ def build_docs(entry):
     docs = []
     if text.strip():
         docs.append(dict(url=entry.url, title=entry.title, kind=entry.kind, text=text))
-    for att in extract.find_attachments(links, imgs, entry.url):
+    for att in extract.find_attachments(links, imgs, entry.url, skip_images=len(text) >= OCR_SKIP_IF_TEXT_CHARS):
         try:
             d = extract.fetch_attachment(att)
         except Exception as exc:
@@ -56,7 +56,7 @@ def run(force: bool = False) -> str:
             store.set_meta("last_sync_result", msg)
             return msg
         urls = {e.url for e in entries}
-        changed = failed = consecutive = 0
+        changed = failed = consecutive = cooldowns = 0
         for e in entries:
             h = hashlib.sha1(f"{e.title}|{e.updated}|{e.content}".encode()).hexdigest()
             if not force and store.post_hash(e.url) == h:
@@ -73,8 +73,14 @@ def run(force: bool = False) -> str:
                 failed += 1
                 consecutive += 1
                 if consecutive >= 3:
-                    log.error("too many consecutive failures (quota?), stopping this run")
-                    break
+                    cooldowns += 1
+                    if cooldowns > 4:
+                        log.error("too many failures (quota?), stopping this run; failed posts are retried soon")
+                        break
+                    log.warning("rate limit? waiting 90 s before continuing")
+                    time.sleep(90)
+                    consecutive = 0
+        state["failed"] = failed
         removed = store.delete_posts_not_in(urls)
         if changed or removed:
             store.reload()
@@ -110,4 +116,4 @@ def loop():
     time.sleep(2)
     while True:
         _safe_run()
-        time.sleep(SYNC_INTERVAL_MIN * 60)
+        time.sleep((10 if state.get("failed") else SYNC_INTERVAL_MIN) * 60)  # unfinished posts: retry in 10 min

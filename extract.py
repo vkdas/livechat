@@ -69,7 +69,7 @@ class Attachment:
     group: str  # file | image
 
 
-def find_attachments(links: list[str], imgs: list[str], base_url: str) -> list[Attachment]:
+def find_attachments(links: list[str], imgs: list[str], base_url: str, skip_images: bool = False) -> list[Attachment]:
     """Files and images that belong to this site only. Everything else is ignored."""
     seen: set[str] = set()
     files: list[Attachment] = []
@@ -94,7 +94,7 @@ def find_attachments(links: list[str], imgs: list[str], base_url: str) -> list[A
             add(images, _upscale(u), "image")
 
     out = files[:MAX_FILES_PER_POST]
-    if OCR_IMAGES:
+    if OCR_IMAGES and not skip_images:
         out += images[:MAX_IMAGES_PER_POST]
     return out
 

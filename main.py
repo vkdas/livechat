@@ -109,8 +109,10 @@ def chat(body: ChatIn, request: Request):
     history = [m.model_dump() for m in body.history]
     try:
         return rag.ask(body.question, history)
-    except Exception:
+    except Exception as exc:
         logging.getLogger("chat").exception("chat failed")
+        store.set_meta("last_chat_error",
+                       time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + " UTC | " + repr(exc)[:500])
         raise HTTPException(503, "এই মুহূর্তে উত্তর দিতে পারছি না। একটু পরে আবার চেষ্টা করুন।")
 
 

@@ -175,6 +175,7 @@ class Store:
             "chunks": self.chunk_count(),
             "last_sync": self.get_meta("last_sync"),
             "last_sync_result": self.get_meta("last_sync_result"),
+            "last_chat_error": self.get_meta("last_chat_error"),
             "questions_30d": total,
             "top_questions": [{"q": a, "count": b} for a, b in top],
             "unanswered": [{"q": a, "count": b} for a, b in unanswered],
