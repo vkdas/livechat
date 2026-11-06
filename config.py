@@ -66,3 +66,8 @@ RATE_LIMIT_PER_HOUR = _int("RATE_LIMIT_PER_HOUR", 0)
 DAILY_CHAT_CAP = _int("DAILY_CHAT_CAP", 0)
 
 # 0 = no limit
+
+# Second AI company as a safety net when every Gemini key is exhausted or blocked (any OpenAI-compatible API; Groq by default)
+FALLBACK_API_KEY = os.getenv("FALLBACK_API_KEY", "")
+FALLBACK_BASE_URL = os.getenv("FALLBACK_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
+FALLBACK_MODEL = os.getenv("FALLBACK_MODEL", "llama-3.3-70b-versatile")

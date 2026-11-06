@@ -7,7 +7,8 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
-from config import CHAT_FALLBACK_MODEL, CHAT_MODEL, EMBED_DIM, EMBED_MODEL, GEMINI_API_KEYS, OCR_MODEL
+from config import (FALLBACK_API_KEY, FALLBACK_BASE_URL, FALLBACK_MODEL,
+                     CHAT_FALLBACK_MODEL, CHAT_MODEL, EMBED_DIM, EMBED_MODEL, GEMINI_API_KEYS, OCR_MODEL)
 
 log = logging.getLogger("llm")
 _client = None
@@ -140,6 +141,16 @@ Rules:
 
 
 def generate_answer(question: str, history: list[dict], hits: list[dict]) -> Answer:
+    try:
+        return _gemini_answer(question, history, hits)
+    except Exception as exc:
+        if not FALLBACK_API_KEY:
+            raise
+        log.warning("Gemini failed (%s); using the fallback provider", str(exc)[:200])
+        return _alt_answer(question, history, hits)
+
+
+def _gemini_answer(question: str, history: list[dict], hits: list[dict]) -> Answer:
     ctx = "\n\n".join(
         f"[{i}] Title: {h['title']}\nURL: {h['url']}\n{h['text']}" for i, h in enumerate(hits, 1))
     hist = "\n".join(
@@ -179,6 +190,40 @@ CHAT = """You are KaKoli Ray, the friendly virtual assistant of the website BD J
 
 
 def smalltalk(question: str, history: list[dict]) -> str:
+    try:
+        return _gemini_smalltalk(question)
+    except Exception:
+        if not FALLBACK_API_KEY:
+            raise
+        return _alt_chat(CHAT, question, temperature=0.7).strip()
+
+
+def _gemini_smalltalk(question: str) -> str:
     res = _generate([CHAT_FALLBACK_MODEL, CHAT_MODEL], contents=question,
                     config=types.GenerateContentConfig(system_instruction=CHAT, temperature=0.7))
     return (res.text or "").strip()
+
+
+def _alt_chat(system: str, user: str, json_mode: bool = False, temperature: float = 0.2) -> str:
+    """Same question to the second provider (OpenAI-compatible API such as Groq)."""
+    import httpx
+    if not FALLBACK_API_KEY:
+        raise RuntimeError("no fallback provider configured")
+    body = {"model": FALLBACK_MODEL, "temperature": temperature,
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+    if json_mode:
+        body["response_format"] = {"type": "json_object"}
+    r = httpx.post(FALLBACK_BASE_URL + "/chat/completions", json=body, timeout=60,
+                   headers={"Authorization": "Bearer " + FALLBACK_API_KEY})
+    r.raise_for_status()
+    return r.json()["choices"][0]["message"]["content"]
+
+
+def _alt_answer(question, history, hits) -> "Answer":
+    ctx = "\n\n".join(f"[{i}] Title: {h['title']}\nURL: {h['url']}\n{h['text']}" for i, h in enumerate(hits, 1))
+    hist = "\n".join(f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content'][:600]}" for m in history[-6:])
+    schema = ('Reply ONLY with JSON: {"found": bool, "answer": string, "used_sources": [int], "followups": [string]}.')
+    raw = _alt_chat(SYSTEM + "\n\n" + schema,
+                    f"<context>\n{ctx}\n</context>\n\n<conversation>\n{hist}\n</conversation>\n\n<question>\n{question}\n</question>",
+                    json_mode=True)
+    return Answer(**json.loads(raw))
