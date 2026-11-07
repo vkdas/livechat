@@ -7,7 +7,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
-from config import (OCR_FALLBACK_MODEL, PROVIDERS, VISION_DAILY_LIMIT, CHAT_FALLBACK_MODEL, CHAT_MODEL, EMBED_DIM,
+from config import (ALT_CHUNK_CHARS, ALT_MAX_HITS, VISION_PAUSE_SEC, OCR_FALLBACK_MODEL, PROVIDERS, VISION_DAILY_LIMIT, CHAT_FALLBACK_MODEL, CHAT_MODEL, EMBED_DIM,
                      EMBED_MODEL, GEMINI_API_KEYS, OCR_MODEL)
 from store import quota_day, store
 
@@ -134,7 +134,9 @@ def _alt_vision(data: bytes, mime: str, prompt: str) -> str:
                                                       {"type": "image_url", "image_url": {"url": url}}]}]}
     r = httpx.post(p["url"] + "/chat/completions", json=body, timeout=90, headers={"Authorization": "Bearer " + p["key"]})
     r.raise_for_status()
-    return (r.json()["choices"][0]["message"].get("content") or "").strip()
+    out = (r.json()["choices"][0]["message"].get("content") or "").strip()
+    time.sleep(VISION_PAUSE_SEC)  # the indexer must not eat the minute-limit that chat answers need
+    return out
 
 
 def ocr(data: bytes, mime: str) -> str:
@@ -275,6 +277,7 @@ def _json_from(text: str) -> dict:
 
 
 def _alt_answer(question, history, hits) -> "Answer":
+    hits = [dict(h, text=h["text"][:ALT_CHUNK_CHARS]) for h in hits[:ALT_MAX_HITS]]
     ctx = "\n\n".join(f"[{i}] Title: {h['title']}\nURL: {h['url']}\n{h['text']}" for i, h in enumerate(hits, 1))
     hist = "\n".join(f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content'][:600]}" for m in history[-6:])
     schema = ('Reply ONLY with JSON: {"found": bool, "answer": string, "used_sources": [int], "followups": [string]}.')

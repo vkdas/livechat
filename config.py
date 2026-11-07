@@ -91,3 +91,8 @@ LINKED_MAX_CHARS = _int("LINKED_MAX_CHARS", 400000)   # text kept from one linke
 PDF_VISION_PAGES = _int("PDF_VISION_PAGES", 15)       # pages of a scanned PDF read by the vision fallback
 VISION_DAILY_LIMIT = _int("VISION_DAILY_LIMIT", 600)  # image reads per day, so chat keeps part of the free quota
 MAX_RETRIES = _int("MAX_RETRIES", 30)                  # a post with a temporary failure is tried again on later syncs
+
+# Free fallback providers allow only a few thousand tokens per minute: send them a smaller context
+ALT_MAX_HITS = _int("ALT_MAX_HITS", 4)
+ALT_CHUNK_CHARS = _int("ALT_CHUNK_CHARS", 1000)
+VISION_PAUSE_SEC = _int("VISION_PAUSE_SEC", 8)   # pause between image reads so chat keeps its share of the per-minute limit
