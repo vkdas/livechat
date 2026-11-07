@@ -7,8 +7,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
-from config import (FALLBACK_API_KEY, FALLBACK_BASE_URL, FALLBACK_MODEL,
-                     CHAT_FALLBACK_MODEL, CHAT_MODEL, EMBED_DIM, EMBED_MODEL, GEMINI_API_KEYS, OCR_MODEL)
+from config import (PROVIDERS, CHAT_FALLBACK_MODEL, CHAT_MODEL, EMBED_DIM, EMBED_MODEL, GEMINI_API_KEYS, OCR_MODEL)
 
 log = logging.getLogger("llm")
 _client = None
@@ -144,7 +143,7 @@ def generate_answer(question: str, history: list[dict], hits: list[dict]) -> Ans
     try:
         return _gemini_answer(question, history, hits)
     except Exception as exc:
-        if not FALLBACK_API_KEY:
+        if not PROVIDERS:
             raise
         log.warning("Gemini failed (%s); using the fallback provider", str(exc)[:200])
         return _alt_answer(question, history, hits)
@@ -193,7 +192,7 @@ def smalltalk(question: str, history: list[dict]) -> str:
     try:
         return _gemini_smalltalk(question)
     except Exception:
-        if not FALLBACK_API_KEY:
+        if not PROVIDERS:
             raise
         return _alt_chat(CHAT, question, temperature=0.7).strip()
 
@@ -204,19 +203,38 @@ def _gemini_smalltalk(question: str) -> str:
     return (res.text or "").strip()
 
 
+_pcool: dict = {}
+
+
 def _alt_chat(system: str, user: str, json_mode: bool = False, temperature: float = 0.2) -> str:
-    """Same question to the second provider (OpenAI-compatible API such as Groq)."""
+    """Same question to the other free providers, in order; one that is rate-limited or down is skipped for a while."""
     import httpx
-    if not FALLBACK_API_KEY:
+    if not PROVIDERS:
         raise RuntimeError("no fallback provider configured")
-    body = {"model": FALLBACK_MODEL, "temperature": temperature,
-            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
-    if json_mode:
-        body["response_format"] = {"type": "json_object"}
-    r = httpx.post(FALLBACK_BASE_URL + "/chat/completions", json=body, timeout=60,
-                   headers={"Authorization": "Bearer " + FALLBACK_API_KEY})
-    r.raise_for_status()
-    return r.json()["choices"][0]["message"]["content"]
+    last = None
+    now = time.time()
+    order = [p for p in PROVIDERS if _pcool.get(p["name"], 0) <= now] or list(PROVIDERS)
+    for p in order:
+        body = {"model": p["model"], "temperature": temperature,
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+        try:
+            r = httpx.post(p["url"] + "/chat/completions", json=body, timeout=60,
+                           headers={"Authorization": "Bearer " + p["key"]})
+            r.raise_for_status()
+            text = (r.json()["choices"][0]["message"].get("content") or "").strip()
+            if not text:
+                raise RuntimeError("empty reply")
+            return text
+        except Exception as exc:
+            last = exc
+            _pcool[p["name"]] = time.time() + (60 if "429" in str(exc) else 300)
+            log.warning("provider %s failed: %s", p["name"], str(exc)[:200])
+    raise last
+
+
+def _json_from(text: str) -> dict:
+    a, b = text.find("{"), text.rfind("}")
+    return json.loads(text[a:b + 1])
 
 
 def _alt_answer(question, history, hits) -> "Answer":
@@ -226,4 +244,4 @@ def _alt_answer(question, history, hits) -> "Answer":
     raw = _alt_chat(SYSTEM + "\n\n" + schema,
                     f"<context>\n{ctx}\n</context>\n\n<conversation>\n{hist}\n</conversation>\n\n<question>\n{question}\n</question>",
                     json_mode=True)
-    return Answer(**json.loads(raw))
+    return Answer(**_json_from(raw))

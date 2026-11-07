@@ -90,5 +90,11 @@ app/static/        widget.js, admin.html
 - ভিজিটরদের প্রশ্নে কোনো সীমা নেই (ডিফল্ট `RATE_LIMIT_PER_HOUR=0`, `DAILY_CHAT_CAP=0`)। চাইলে সংখ্যা দিয়ে সীমা চালু করা যায়।
 - Render Environment-এ `GEMINI_API_KEY_2`, `GEMINI_API_KEY_3` (সর্বোচ্চ ১০টি পর্যন্ত) যোগ করলে প্রথম key-র ফ্রি কোটা শেষ হলে সার্ভার নিজে পরের key-তে চলে যায়। **প্রতিটি key আলাদা Google প্রজেক্ট থেকে নিতে হবে**, কারণ কোটা প্রজেক্ট ধরে হিসাব হয়।
 
-## দ্বিতীয় কোম্পানির এপিআই (Gemini বন্ধ হলে)
-Render Environment-এ `FALLBACK_API_KEY` (Groq-এর key) দিলে Gemini ব্যর্থ হলে চ্যাট নিজে Groq-এ উত্তর তৈরি করে। ডিফল্ট `FALLBACK_BASE_URL=https://api.groq.com/openai/v1`, `FALLBACK_MODEL=llama-3.3-70b-versatile`। মডেলের নাম Groq কনসোলে মিলিয়ে নিন। অন্য কোনো OpenAI-সামঞ্জস্যপূর্ণ সেবাও এই তিনটি মানে বসানো যায়। এমবেডিং ও ছবি/PDF OCR শুধু Gemini-তে চলে।
+## অন্য কোম্পানির ফ্রি এপিআই (Gemini বন্ধ বা কোটা শেষ হলে)
+Render Environment-এ নিচের যেকোনো key দিন। Gemini ব্যর্থ হলে চ্যাট এই ক্রমে একটার পর একটা চেষ্টা করে, কোনোটা ব্যস্ত বা বন্ধ থাকলে কিছুক্ষণ বাদ দেয়:
+- `GROQ_API_KEY` (console.groq.com), মডেল বদলাতে `GROQ_MODEL`
+- `MISTRAL_API_KEY` (console.mistral.ai), `MISTRAL_MODEL`
+- `NVIDIA_API_KEY` (build.nvidia.com), `NVIDIA_MODEL`
+- `OPENROUTER_API_KEY` (openrouter.ai), `OPENROUTER_MODEL`
+- নিজের পছন্দের OpenAI-সামঞ্জস্যপূর্ণ সেবা: `FALLBACK_API_KEY`, `FALLBACK_BASE_URL`, `FALLBACK_MODEL`
+মডেলের নাম বদলাতে পারে, ত্রুটি দেখালে প্রতিটি কোম্পানির সাইটে চালু নাম দেখে Environment-এ বদলে দিন। এমবেডিং ও ছবি/PDF OCR শুধু Gemini-তে চলে। Mistral ও OpenRouter-এর ফ্রি স্তরে পাঠানো লেখা তাদের উন্নয়নে ব্যবহার হতে পারে।

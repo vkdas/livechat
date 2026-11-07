@@ -67,7 +67,20 @@ DAILY_CHAT_CAP = _int("DAILY_CHAT_CAP", 0)
 
 # 0 = no limit
 
-# Second AI company as a safety net when every Gemini key is exhausted or blocked (any OpenAI-compatible API; Groq by default)
-FALLBACK_API_KEY = os.getenv("FALLBACK_API_KEY", "")
-FALLBACK_BASE_URL = os.getenv("FALLBACK_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
-FALLBACK_MODEL = os.getenv("FALLBACK_MODEL", "llama-3.3-70b-versatile")
+# Other free AI companies, used in this order when every Gemini key is exhausted or blocked.
+# Any OpenAI-compatible service works. A provider is active only if its key is set.
+def _provider(name, key_env, url, model_env, model):
+    key = os.getenv(key_env, "").strip()
+    return dict(name=name, key=key, url=os.getenv(name.upper() + "_BASE_URL", url).rstrip("/"),
+                model=os.getenv(model_env, model)) if key else None
+
+
+PROVIDERS = [p for p in (
+    _provider("groq", "GROQ_API_KEY", "https://api.groq.com/openai/v1", "GROQ_MODEL", "openai/gpt-oss-120b"),
+    _provider("mistral", "MISTRAL_API_KEY", "https://api.mistral.ai/v1", "MISTRAL_MODEL", "mistral-large-latest"),
+    _provider("nvidia", "NVIDIA_API_KEY", "https://integrate.api.nvidia.com/v1", "NVIDIA_MODEL",
+              "nvidia/nemotron-3-ultra-550b-a55b"),
+    _provider("openrouter", "OPENROUTER_API_KEY", "https://openrouter.ai/api/v1", "OPENROUTER_MODEL",
+              "nvidia/nemotron-3-ultra-550b-a55b:free"),
+    _provider("custom", "FALLBACK_API_KEY", "https://api.groq.com/openai/v1", "FALLBACK_MODEL", "openai/gpt-oss-120b"),
+) if p]
