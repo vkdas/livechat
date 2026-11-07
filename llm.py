@@ -7,7 +7,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
-from config import (ALT_CHUNK_CHARS, ALT_MAX_HITS, VISION_PAUSE_SEC, OCR_FALLBACK_MODEL, PROVIDERS, VISION_DAILY_LIMIT, CHAT_FALLBACK_MODEL, CHAT_MODEL, EMBED_DIM,
+from config import (ALT_CHUNK_CHARS, ALT_MAX_HITS, VISION_PAUSE_SEC, OCR_FALLBACK_MODELS, PROVIDERS, VISION_DAILY_LIMIT, CHAT_FALLBACK_MODEL, CHAT_MODEL, EMBED_DIM,
                      EMBED_MODEL, GEMINI_API_KEYS, OCR_MODEL)
 from store import quota_day, store
 
@@ -129,11 +129,21 @@ def _alt_vision(data: bytes, mime: str, prompt: str) -> str:
     if not p:
         raise RuntimeError("no vision fallback configured")
     url = f"data:{mime};base64," + base64.b64encode(data).decode()
-    body = {"model": OCR_FALLBACK_MODEL, "temperature": 0,
-            "messages": [{"role": "user", "content": [{"type": "text", "text": prompt},
-                                                      {"type": "image_url", "image_url": {"url": url}}]}]}
-    r = httpx.post(p["url"] + "/chat/completions", json=body, timeout=90, headers={"Authorization": "Bearer " + p["key"]})
-    r.raise_for_status()
+    errors = []
+    r = None
+    for model in OCR_FALLBACK_MODELS:
+        body = {"model": model, "temperature": 0, "max_tokens": 1500,
+                "messages": [{"role": "user", "content": [{"type": "text", "text": prompt},
+                                                          {"type": "image_url", "image_url": {"url": url}}]}]}
+        try:
+            r = httpx.post(p["url"] + "/chat/completions", json=body, timeout=90, headers={"Authorization": "Bearer " + p["key"]})
+            r.raise_for_status()
+            break
+        except Exception as exc:
+            errors.append(f"{model}: {str(exc)[:120]}")
+            r = None
+    if r is None:
+        raise RuntimeError("image reading failed: " + " | ".join(errors))
     out = (r.json()["choices"][0]["message"].get("content") or "").strip()
     time.sleep(VISION_PAUSE_SEC)  # the indexer must not eat the minute-limit that chat answers need
     return out
@@ -169,7 +179,7 @@ Rules:
 - If the question is general (for example who can apply, eligibility, fees or age limits without naming a job) and the context holds related circulars, set found=true: say briefly that it depends on the specific circular, summarize what the circulars in the context say, and ask which job the visitor means. Do not answer with a plain 'not found' for such questions.
 - Cite sources inline like [1], [2] and list the numbers you used in used_sources.
 - Style: warm, polite and natural, like a helpful person at a help desk. Organize the answer: one short opening sentence, then a short bullet list for steps, requirements or documents, with important dates, fees and deadlines in **bold**. Keep it brief and finish with one friendly line offering more help.
-- followups: up to 3 short follow-up questions answerable from the context (empty if found=false), written in the visitor's language."""
+- followups: up to 3 short follow-up questions that stay strictly on the SAME topic as the visitor's question (never suggest other subjects, jobs or categories) and are answerable from the context (empty if found=false), written in the visitor's language."""
 
 
 def today() -> str:

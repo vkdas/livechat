@@ -78,7 +78,7 @@ def _provider(name, key_env, url, model_env, model):
 
 PROVIDERS = [p for p in (
     _provider("groq", "GROQ_API_KEY", "https://api.groq.com/openai/v1", "GROQ_MODEL",
-              "openai/gpt-oss-120b,llama-3.3-70b-versatile,llama-3.1-8b-instant"),
+              "openai/gpt-oss-120b,openai/gpt-oss-20b,qwen/qwen3.6-27b,qwen/qwen3.8-27b"),
     _provider("mistral", "MISTRAL_API_KEY", "https://api.mistral.ai/v1", "MISTRAL_MODEL", "mistral-large-latest"),
     _provider("nvidia", "NVIDIA_API_KEY", "https://integrate.api.nvidia.com/v1", "NVIDIA_MODEL",
               "nvidia/nemotron-3-ultra-550b-a55b"),
@@ -87,11 +87,11 @@ PROVIDERS = [p for p in (
     _provider("custom", "FALLBACK_API_KEY", "https://api.groq.com/openai/v1", "FALLBACK_MODEL", "openai/gpt-oss-120b"),
 ) if p]
 
-OCR_FALLBACK_MODEL = os.getenv("OCR_FALLBACK_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")  # Groq vision model for images
+OCR_FALLBACK_MODELS = [m.strip() for m in os.getenv("OCR_FALLBACK_MODEL", "qwen/qwen3.8-27b,qwen/qwen3.6-27b").split(",") if m.strip()]  # Groq models tried for images
 
 LINKED_MAX_CHARS = _int("LINKED_MAX_CHARS", 400000)   # text kept from one linked page / PDF
 PDF_VISION_PAGES = _int("PDF_VISION_PAGES", 15)       # pages of a scanned PDF read by the vision fallback
-VISION_DAILY_LIMIT = _int("VISION_DAILY_LIMIT", 600)  # image reads per day, so chat keeps part of the free quota
+VISION_DAILY_LIMIT = _int("VISION_DAILY_LIMIT", 60)  # image reads per day, so chat keeps part of the free quota
 MAX_RETRIES = _int("MAX_RETRIES", 30)                  # a post with a temporary failure is tried again on later syncs
 
 # Free fallback providers allow only a few thousand tokens per minute: send them a smaller context

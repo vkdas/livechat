@@ -108,8 +108,22 @@
   function esc(t) {
     return String(t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
   }
+  function anchor(url, label) {
+    return '<a class="lk" href="' + safeUrl(url) + '" target="_blank" rel="noopener noreferrer">' + label + '</a>';
+  }
   function inline(t) {
-    return esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\[(\d+)\]/g, '<sup class="cite">$1</sup>');
+    var links = [], s = esc(t);
+    function keep(html) { links.push(html); return '\u0001' + (links.length - 1) + '\u0001'; }
+    // [label](https://...)
+    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, function (_, label, url) { return keep(anchor(url, label)); });
+    // plain https://... addresses, without the punctuation that follows them
+    s = s.replace(/https?:\/\/[^\s<]+/g, function (u) {
+      var m = u.match(/[).,;:!?\u0964'"]+$/), tail = '';
+      if (m) { tail = m[0]; u = u.slice(0, -tail.length); }
+      return keep(anchor(u, u)) + tail;
+    });
+    s = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\[(\d+)\]/g, '<sup class="cite">$1</sup>');
+    return s.replace(/\u0001(\d+)\u0001/g, function (_, i) { return links[+i]; });
   }
   function fmt(t) {
     var out = '', inList = false;
@@ -138,6 +152,7 @@
     'button,input{font:inherit;color:inherit}' +
     'button{cursor:pointer;background:none;border:0}' +
     ':focus-visible{outline:2px solid var(--link);outline-offset:2px}' +
+    'a.lk{color:var(--link);text-decoration:underline;word-break:break-all;cursor:pointer}' +
     '.fab,.panel{font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,"LiveChatBn","SolaimanLipi","Noto Sans Bengali","Nirmala UI",sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}' +
     '.fab{position:fixed;right:18px;bottom:18px;width:58px;height:58px;border-radius:50%;background:var(--green);color:#fff;display:grid;place-items:center;box-shadow:0 6px 20px rgba(10,30,24,.35);z-index:2147483000;transition:transform .15s}' +
     '.fab:hover{transform:scale(1.05)}.fab svg{grid-area:1/1;transition:opacity .15s,transform .2s}' +

@@ -1,6 +1,7 @@
 import hashlib
 import logging
 import re
+import time
 
 import llm
 from config import EMBED_DAILY_LIMIT, EMBEDDINGS, MIN_SIM, TOP_K, WEB_FALLBACK
@@ -30,8 +31,17 @@ def detect_lang(text: str) -> str:
     return "en"
 
 
+CLARIFY = {
+    "bn": "আপনি ঠিক কী জানতে চান, আরেকটু খুলে বলবেন? আমি চাকরির বিজ্ঞপ্তি, শেষ তারিখ, যোগ্যতা, কাগজপত্র ও আবেদনের নিয়ম নিয়ে সাহায্য করতে পারি।",
+    "en": "Could you tell me a little more about what you need? I can help with job circulars, deadlines, eligibility, documents and how to apply.",
+    "hi": "क्या आप थोड़ा और बता सकते हैं कि आपको क्या जानना है? मैं नौकरी के सर्कुलर, अंतिम तिथि, योग्यता, दस्तावेज़ और आवेदन में मदद कर सकती हूँ।",
+    "ar": "هل يمكنك أن توضح أكثر ما تحتاجه؟ يمكنني المساعدة في الوظائف والمواعيد والشروط والمستندات وطريقة التقديم.",
+}
+
+
 def _not_found(question: str) -> dict:
-    return {"found": False, "answer": NOT_FOUND[detect_lang(question)],
+    short = len(question.split()) <= 5  # a short, vague message: ask what they mean instead of a dead end
+    return {"found": False, "answer": (CLARIFY if short else NOT_FOUND)[detect_lang(question)],
             "sources": [], "followups": []}
 
 
@@ -125,6 +135,35 @@ def expand_query(q: str) -> str:
     return q if not extra else q + " " + " ".join(dict.fromkeys(" ".join(extra).split()))
 
 
+SEARCH_ONLY = {
+    "bn": "এই মুহূর্তে এআই-উত্তর দেওয়া যাচ্ছে না, তবে আপনার প্রশ্নের সাথে মিল আছে এমন তথ্য আমাদের সাইটে পাওয়া গেছে:",
+    "en": "I can't compose an answer right now, but I found these matching items on our site:",
+    "hi": "अभी उत्तर तैयार नहीं हो पा रहा, लेकिन हमारी साइट पर आपके प्रश्न से मिलती जानकारी मिली:",
+    "ar": "لا أستطيع صياغة إجابة الآن، لكنني وجدت هذه المعلومات المطابقة على موقعنا:",
+}
+
+
+def _snippet(text: str, n: int = 260) -> str:
+    t = re.sub(r"^Published:[^\n]*\n", "", text).strip()
+    t = re.sub(r"\s+", " ", t)
+    return t[:n].rstrip() + ("…" if len(t) > n else "")
+
+
+def _search_only(q: str, hits: list[dict]) -> dict:
+    """No AI available (quota/outage): show the best matching passages and their post links, without any token cost."""
+    top, seen = [], set()
+    for h in hits:
+        if h["url"] in seen:
+            continue
+        seen.add(h["url"])
+        top.append(h)
+        if len(top) == 3:
+            break
+    lines = [SEARCH_ONLY[detect_lang(q)]] + [f"\n**{i}. {h['title']}**\n{_snippet(h['text'])}" for i, h in enumerate(top, 1)]
+    sources = [{"n": i, "title": h["title"], "url": h["url"], "kind": h["kind"]} for i, h in enumerate(top, 1)]
+    return {"found": True, "answer": "\n".join(lines), "sources": sources, "followups": []}
+
+
 def ask(question: str, history: list[dict]) -> dict:
     q = question.strip()
     key = None
@@ -166,7 +205,14 @@ def ask(question: str, history: list[dict]) -> dict:
     if not hits or (max(h["sem"] for h in hits) < MIN_SIM and max(h["kw"] for h in hits) == 0):
         result = _not_found(q)
     else:
-        ans = llm.generate_answer(q, history, hits)
+        try:
+            ans = llm.generate_answer(q, history, hits)
+        except Exception as exc:  # every AI is busy or out of quota: still give the visitor the matching passages
+            logging.getLogger("rag").warning("answer generation failed: %s", str(exc)[:300])
+            store.set_meta("last_chat_error", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + " UTC | " + repr(exc)[:500])
+            result = _search_only(q, hits)
+            store.log_question(q, True, False)
+            return result  # not cached: a real answer replaces it once the AI is back
         if not ans.found:
             result = _not_found(q)
             result["answer"] = ans.answer or result["answer"]
@@ -189,8 +235,12 @@ def ask(question: str, history: list[dict]) -> dict:
             logging.getLogger("rag").warning("general fallback failed: %s", str(exc)[:200])
 
     if not result["found"] and not result.get("followups"):
-        # nothing to say yet: point the visitor to the newest circulars instead of a dead end
-        result["followups"] = [h["title"][:90] for h in recent_hits()[:3]]
+        # no answer: suggest only posts about the SAME topic (close matches), never unrelated subjects
+        seen_t = []
+        for h in hits:
+            if (h.get("kw", 0) > 0 or h.get("sem", 0) >= MIN_SIM) and h["title"][:90] not in seen_t:
+                seen_t.append(h["title"][:90])
+        result["followups"] = seen_t[:3]
 
     store.log_question(q, result["found"], False)
     if key:
