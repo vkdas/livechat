@@ -64,7 +64,8 @@ def _with_keys(model, call):
             return _retry(lambda: call(client(i)), tries=1 if more else 5)
         except Exception as exc:
             last = exc
-            if "API_KEY_INVALID" in str(exc) or "API key not valid" in str(exc):
+            m = str(exc)
+            if "API_KEY_INVALID" in m or "API key not valid" in m or "PERMISSION_DENIED" in m or "free tier is not available" in m:
                 _cool[(i, model)] = time.time() + 12 * 3600  # bad key: skip it, use the others
                 log.error("API key #%s is not valid (check it in Render > Environment)", i + 1)
                 continue
