@@ -42,18 +42,18 @@ DATA_DIR = Path(os.getenv("DATA_DIR", "./data"))
 
 # Sync / crawl
 SYNC_INTERVAL_MIN = _int("SYNC_INTERVAL_MIN", 60)
-MAX_FILES_PER_POST = _int("MAX_FILES_PER_POST", 5)
-MAX_IMAGES_PER_POST = _int("MAX_IMAGES_PER_POST", 3)
+MAX_FILES_PER_POST = _int("MAX_FILES_PER_POST", 20)
+MAX_IMAGES_PER_POST = _int("MAX_IMAGES_PER_POST", 10)
 # posts that already have this much text skip image OCR (saves a lot of free quota)
-OCR_SKIP_IF_TEXT_CHARS = _int("OCR_SKIP_IF_TEXT_CHARS", 800)
-MAX_FILE_MB = _int("MAX_FILE_MB", 15)
+OCR_SKIP_IF_TEXT_CHARS = _int("OCR_SKIP_IF_TEXT_CHARS", 0)
+MAX_FILE_MB = _int("MAX_FILE_MB", 25)
 LINKED_PAGES = os.getenv("LINKED_PAGES", "true").lower() == "true"
-MAX_LINKED_PER_POST = _int("MAX_LINKED_PER_POST", 5)
+MAX_LINKED_PER_POST = _int("MAX_LINKED_PER_POST", 20)
 WEB_FALLBACK = os.getenv("WEB_FALLBACK", "true").lower() == "true"
 OCR_IMAGES = os.getenv("OCR_IMAGES", "true").lower() == "true"
 PDF_OCR = os.getenv("PDF_OCR", "auto").lower()  # auto | always | never
 PDF_MAX_OCR_PAGES = _int("PDF_MAX_OCR_PAGES", 40)
-MAX_CHUNKS_PER_DOC = _int("MAX_CHUNKS_PER_DOC", 150)
+MAX_CHUNKS_PER_DOC = _int("MAX_CHUNKS_PER_DOC", 600)
 
 # Retrieval
 CHUNK_CHARS = _int("CHUNK_CHARS", 1800)
@@ -86,3 +86,8 @@ PROVIDERS = [p for p in (
 ) if p]
 
 OCR_FALLBACK_MODEL = os.getenv("OCR_FALLBACK_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")  # Groq vision model for images
+
+LINKED_MAX_CHARS = _int("LINKED_MAX_CHARS", 400000)   # text kept from one linked page / PDF
+PDF_VISION_PAGES = _int("PDF_VISION_PAGES", 15)       # pages of a scanned PDF read by the vision fallback
+VISION_DAILY_LIMIT = _int("VISION_DAILY_LIMIT", 600)  # image reads per day, so chat keeps part of the free quota
+MAX_RETRIES = _int("MAX_RETRIES", 30)                  # a post with a temporary failure is tried again on later syncs

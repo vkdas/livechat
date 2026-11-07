@@ -6,7 +6,7 @@ import time
 
 import crawler, extract, llm
 from config import (CHUNK_CHARS, CHUNK_OVERLAP, EMBEDDINGS, EMBED_CHAT_RESERVE, EMBED_DAILY_LIMIT,
-                     MAX_CHUNKS_PER_DOC, OCR_SKIP_IF_TEXT_CHARS, SYNC_INTERVAL_MIN)
+                     MAX_CHUNKS_PER_DOC, MAX_RETRIES, OCR_SKIP_IF_TEXT_CHARS, SYNC_INTERVAL_MIN)
 from store import chunk_hash, store
 from textutil import chunk_text
 
@@ -17,6 +17,8 @@ state = {"running": False, "last_ts": 0.0, "failed": 0, "paused": False, "att_ok
 
 def _att_fail(url, exc):
     state["att_fail"] += 1
+    if extract.is_transient(exc):
+        extract.transient_flag["n"] += 1
     if len(state["att_why"]) < 6:
         state["att_why"].append(f"{url[-70:]} -> {str(exc)[:110]}")
 
@@ -28,9 +30,11 @@ def build_docs(entry):
         if entry.published:
             text = f"Published: {entry.published[:10]}\n{text}"
         docs.append(dict(url=entry.url, title=entry.title, kind=entry.kind, text=text))
-    for att in extract.find_attachments(links, imgs, entry.url, skip_images=len(text) >= OCR_SKIP_IF_TEXT_CHARS):
+    for att in extract.find_attachments(links, imgs, entry.url, skip_images=bool(OCR_SKIP_IF_TEXT_CHARS) and len(text) >= OCR_SKIP_IF_TEXT_CHARS):
         try:
-            d = extract.fetch_attachment(att)
+            d = store.cache_get("att:" + att.url) or extract.fetch_attachment(att)
+            if d and d.get("text"):
+                store.cache_put("att:" + att.url, d)
         except Exception as exc:
             log.warning("attachment %s failed: %s", att.url, exc)
             _att_fail(att.url, exc)
@@ -43,7 +47,9 @@ def build_docs(entry):
             _att_fail(att.url, "no readable text")
     for u in extract.find_linked_pages(links):
         try:
-            d = extract.fetch_linked(u, entry.url, entry.title)
+            d = store.cache_get("lnk:" + u) or extract.fetch_linked(u, entry.url, entry.title)
+            if d:
+                store.cache_put("lnk:" + u, d)
         except Exception as exc:
             log.warning("linked page %s failed: %s", u, exc)
             _att_fail(u, exc)
@@ -116,13 +122,24 @@ def run(force: bool = False) -> str:
         urls = {e.url for e in entries}
         recent = sorted((e for e in entries if e.kind == "post" and e.published), key=lambda e: e.published, reverse=True)[:12]
         store.set_meta("recent", json.dumps([dict(url=e.url, title=e.title, published=e.published[:10]) for e in recent]))
-        changed = failed = 0
+        changed = failed = incomplete = 0
         for e in entries:
             h = hashlib.sha1(f"{e.title}|{e.updated}|{e.content}".encode()).hexdigest()
             if not force and store.post_hash(e.url) == h:
                 continue
             try:
-                store.replace_post(e.url, h, make_chunks(e.url, build_docs(e)))
+                extract.transient_flag["n"] = 0
+                docs = build_docs(e)
+                retries = json.loads(store.get_meta("retries") or "{}")
+                tries = retries.get(e.url, 0)
+                if extract.transient_flag["n"] and tries < MAX_RETRIES:
+                    retries[e.url] = tries + 1  # a file timed out or quota ran out: look again on a later sync
+                    store.replace_post(e.url, h + "|retry", make_chunks(e.url, docs))
+                    incomplete += 1
+                else:
+                    retries.pop(e.url, None)
+                    store.replace_post(e.url, h, make_chunks(e.url, docs))
+                store.set_meta("retries", json.dumps(retries))
                 changed += 1
                 if changed % 10 == 0:
                     store.reload()  # chat starts answering from what is already read
@@ -130,13 +147,14 @@ def run(force: bool = False) -> str:
                 log.exception("failed to read %s", e.url)
                 failed += 1
         state["failed"] = failed
+        state["incomplete"] = incomplete
         removed = store.delete_posts_not_in(urls)
         if changed or removed:
             store.reload()
         embedded, why = backfill()
         if embedded:
             store.reload()
-        msg = (f"নতুন/বদলানো: {changed}, ব্যর্থ: {failed}, মোছা: {removed}, মোট পোস্ট/পেজ: {len(urls)} | "
+        msg = (f"আংশিক পড়া (পরে আবার চেষ্টা): {incomplete} | নতুন/বদলানো: {changed}, ব্যর্থ: {failed}, মোছা: {removed}, মোট পোস্ট/পেজ: {len(urls)} | "
                f"এমবেডিং: +{embedded} ({why}), বাকি চাংক: {store.pending_count()}")
         store.set_meta("attach_report", f"ফাইল/ছবি/লিংক পড়া গেছে: {state['att_ok']}, পড়া যায়নি: {state['att_fail']}"
                        + (" | উদাহরণ: " + " ; ".join(state["att_why"]) if state["att_why"] else ""))

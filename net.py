@@ -30,7 +30,7 @@ def get(url: str, max_mb: int = MAX_FILE_MB, params=None, allow=None):
             raise ValueError("host not allowed")
         _check(cur)
         with httpx.stream("GET", cur, params=params if cur == url else None,
-                          follow_redirects=False, timeout=30, headers=HEADERS) as r:
+                          follow_redirects=False, timeout=60, headers=HEADERS) as r:
             if r.is_redirect:
                 cur = urljoin(cur, r.headers["location"])
                 continue

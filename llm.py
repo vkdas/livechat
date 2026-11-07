@@ -118,6 +118,13 @@ def _alt_vision(data: bytes, mime: str, prompt: str) -> str:
     """Read an image with the Groq vision model when Gemini is not usable."""
     import base64
     import httpx
+    from .config import VISION_DAILY_LIMIT
+    from .store import quota_day, store
+    key = "vision:" + quota_day()
+    used = int(store.get_meta(key) or 0)
+    if used >= VISION_DAILY_LIMIT:
+        raise RuntimeError("image-reading budget used up for today, will retry later")
+    store.set_meta(key, str(used + 1))
     p = next((x for x in PROVIDERS if x["name"] == "groq"), None)
     if not p:
         raise RuntimeError("no vision fallback configured")
@@ -241,7 +248,7 @@ def _alt_chat(system: str, user: str, json_mode: bool = False, temperature: floa
     import httpx
     if not PROVIDERS:
         raise RuntimeError("no fallback provider configured")
-    last = None
+    errors = []
     now = time.time()
     order = [p for p in PROVIDERS if _pcool.get(p["name"], 0) <= now] or list(PROVIDERS)
     for p in order:
@@ -256,10 +263,10 @@ def _alt_chat(system: str, user: str, json_mode: bool = False, temperature: floa
                 raise RuntimeError("empty reply")
             return text
         except Exception as exc:
-            last = exc
+            errors.append(f"{p['name']}({p['model']}): {str(exc)[:160]}")
             _pcool[p["name"]] = time.time() + (60 if "429" in str(exc) else 300)
-            log.warning("provider %s failed: %s", p["name"], str(exc)[:200])
-    raise last
+            log.warning("provider %s failed: %s", p["name"], str(exc)[:300])
+    raise RuntimeError("all providers failed: " + " | ".join(errors))
 
 
 def _json_from(text: str) -> dict:

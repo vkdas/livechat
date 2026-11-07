@@ -8,7 +8,7 @@ from urllib.parse import unquote, urljoin, urlparse
 from bs4 import BeautifulSoup
 
 import llm, net
-from config import (BLOG_URL, LINKED_PAGES, MAX_LINKED_PER_POST, MAX_FILES_PER_POST, MAX_IMAGES_PER_POST, OCR_IMAGES,
+from config import (BLOG_URL, LINKED_MAX_CHARS, LINKED_PAGES, MAX_FILE_MB, MAX_LINKED_PER_POST, PDF_VISION_PAGES, MAX_FILES_PER_POST, MAX_IMAGES_PER_POST, OCR_IMAGES,
                      PDF_MAX_OCR_PAGES, PDF_OCR)
 
 log = logging.getLogger("extract")
@@ -16,6 +16,15 @@ log = logging.getLogger("extract")
 FILE_EXT = {".pdf", ".docx", ".txt", ".md", ".csv"}
 IMG_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 MIN_IMAGE_BYTES = 8000
+
+# counts temporary problems (timeouts, quota) met while reading, so the post can be tried again later
+transient_flag = {"n": 0}
+_TRANSIENT = ("timed out", "timeout", "429", "500", "502", "503", "504", "RESOURCE_EXHAUSTED", "budget", "reset", "Connection", "handshake", "unavailable")
+
+
+def is_transient(exc) -> bool:
+    m = str(exc)
+    return any(x.lower() in m.lower() for x in _TRANSIENT)
 
 # Blogger stores images uploaded to a post on these hosts. They are part of the site's own
 # posts, so images (and only images) from them are allowed.
@@ -116,7 +125,7 @@ def _vision_pdf(data: bytes) -> str:
     import time
 
     parts = []
-    for png in _pdf_pages_png(data, 3):
+    for png in _pdf_pages_png(data, PDF_VISION_PAGES):
         t = llm._alt_vision(png, "image/png", llm.OCR_IMG)
         if t and not t.upper().startswith("EMPTY"):
             parts.append(t)
@@ -134,21 +143,25 @@ def extract_pdf(data: bytes) -> str:
         text = "\n\n".join((p.extract_text() or "") for p in reader.pages).strip()
     need_ocr = PDF_OCR == "always" or (PDF_OCR == "auto" and len(text) < 80 * max(1, n_pages))
     if need_ocr and PDF_OCR != "never":
-        if n_pages > PDF_MAX_OCR_PAGES:
-            log.warning("PDF has %s pages, skipping OCR", n_pages)
-        else:
+        ocr_text = ""
+        if n_pages <= PDF_MAX_OCR_PAGES:
             try:
                 ocr_text = llm.ocr(data, "application/pdf")
-                if len(ocr_text) > len(text):
-                    text = ocr_text
             except Exception as exc:
                 log.warning("pdf ocr failed: %s", exc)
-                try:  # Gemini unavailable: let the image model read the first pages
-                    alt = _vision_pdf(data)
-                    if len(alt) > len(text):
-                        text = alt
-                except Exception as exc2:
-                    log.warning("pdf vision fallback failed: %s", exc2)
+        else:
+            log.warning("PDF has %s pages, reading only the first %s with the vision model", n_pages, PDF_VISION_PAGES)
+        if len(ocr_text) <= len(text):
+            try:  # Gemini unavailable or PDF too long: let the image model read the first pages
+                alt = _vision_pdf(data)
+                if len(alt) > len(ocr_text):
+                    ocr_text = alt
+            except Exception as exc2:
+                log.warning("pdf vision fallback failed: %s", exc2)
+                if is_transient(exc2):
+                    transient_flag["n"] += 1
+        if len(ocr_text) > len(text):
+            text = ocr_text
     return text
 
 
@@ -210,7 +223,7 @@ def find_linked_pages(links: list[str]) -> list[str]:
 
 def fetch_linked(url: str, post_url: str, post_title: str):
     """Text of a page linked from a post. Stored under the POST's address, so answers cite our own post."""
-    data, ct, final = net.get(url, max_mb=8, allow=lambda h: True)
+    data, ct, final = net.get(url, max_mb=MAX_FILE_MB, allow=lambda h: True)
     if ct == "application/pdf" or final.lower().endswith(".pdf"):
         text, title = extract_pdf(data), "PDF"
     elif ct.startswith("text/html") or ct.startswith("application/xhtml"):
@@ -221,7 +234,7 @@ def fetch_linked(url: str, post_url: str, post_title: str):
         text, _, _ = html_to_text(str(soup), final)
     else:
         return None
-    text = text[:30000]
+    text = text[:LINKED_MAX_CHARS]
     if len(text.strip()) < 100:
         return None
     return dict(url=post_url, title=f"{title} ({post_title})", kind="linked", text=f"[Linked page: {final}]\n{text}")
