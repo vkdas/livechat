@@ -139,6 +139,12 @@ Rules:
 - followups: up to 3 short follow-up questions answerable from the context (empty if found=false), written in the visitor's language."""
 
 
+def today() -> str:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo("Asia/Dhaka")).strftime("%Y-%m-%d")
+
+
 def generate_answer(question: str, history: list[dict], hits: list[dict]) -> Answer:
     try:
         return _gemini_answer(question, history, hits)
@@ -154,7 +160,7 @@ def _gemini_answer(question: str, history: list[dict], hits: list[dict]) -> Answ
         f"[{i}] Title: {h['title']}\nURL: {h['url']}\n{h['text']}" for i, h in enumerate(hits, 1))
     hist = "\n".join(
         f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content'][:600]}" for m in history[-6:])
-    prompt = (f"<context>\n{ctx}\n</context>\n\n<conversation>\n{hist}\n</conversation>\n\n"
+    prompt = (f"Today's date (Bangladesh): {today()}. Items may start with 'Published: YYYY-MM-DD'; use these dates for questions about new, latest, today or yesterday.\n\n<context>\n{ctx}\n</context>\n\n<conversation>\n{hist}\n</conversation>\n\n"
               f"<question>\n{question}\n</question>")
     res = _generate([CHAT_MODEL, CHAT_FALLBACK_MODEL], contents=prompt,
                     config=types.GenerateContentConfig(
@@ -242,6 +248,6 @@ def _alt_answer(question, history, hits) -> "Answer":
     hist = "\n".join(f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content'][:600]}" for m in history[-6:])
     schema = ('Reply ONLY with JSON: {"found": bool, "answer": string, "used_sources": [int], "followups": [string]}.')
     raw = _alt_chat(SYSTEM + "\n\n" + schema,
-                    f"<context>\n{ctx}\n</context>\n\n<conversation>\n{hist}\n</conversation>\n\n<question>\n{question}\n</question>",
+                    f"Today's date (Bangladesh): {today()}. Items may start with 'Published: YYYY-MM-DD'.\n\n<context>\n{ctx}\n</context>\n\n<conversation>\n{hist}\n</conversation>\n\n<question>\n{question}\n</question>",
                     json_mode=True)
     return Answer(**_json_from(raw))

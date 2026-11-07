@@ -1,4 +1,5 @@
 import hashlib
+import json
 import logging
 import threading
 import time
@@ -18,6 +19,8 @@ def build_docs(entry):
     text, links, imgs = extract.html_to_text(entry.content, entry.url, keep_links=True)
     docs = []
     if text.strip():
+        if entry.published:
+            text = f"Published: {entry.published[:10]}\n{text}"
         docs.append(dict(url=entry.url, title=entry.title, kind=entry.kind, text=text))
     for att in extract.find_attachments(links, imgs, entry.url, skip_images=len(text) >= OCR_SKIP_IF_TEXT_CHARS):
         try:
@@ -97,6 +100,8 @@ def run(force: bool = False) -> str:
             store.set_meta("last_sync_result", msg)
             return msg
         urls = {e.url for e in entries}
+        recent = sorted((e for e in entries if e.kind == "post" and e.published), key=lambda e: e.published, reverse=True)[:12]
+        store.set_meta("recent", json.dumps([dict(url=e.url, title=e.title, published=e.published[:10]) for e in recent]))
         changed = failed = 0
         for e in entries:
             h = hashlib.sha1(f"{e.title}|{e.updated}|{e.content}".encode()).hexdigest()

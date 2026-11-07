@@ -75,6 +75,19 @@ def is_smalltalk(q: str) -> bool:
     return len(q) <= 60 and bool(_SMALL.match(q.strip()))
 
 
+_RECENT = re.compile(r"(latest|newest|new |recent|today|yesterday|this week|just (published|posted)|নতুন|সর্বশেষ|সাম্প্রতিক|আজ|কাল|কালকে|গতকাল|আজকের|প্রকাশ|এই সপ্তাহ|নতুন সার্কুলার|नया|ताज़ा|आज|कल|جديد|اليوم|أمس)", re.I)
+
+
+def recent_hits() -> list[dict]:
+    import json
+    try:
+        items = json.loads(store.get_meta("recent") or "[]")
+    except Exception:
+        return []
+    return [dict(title=i["title"], url=i["url"], kind="post", sem=1.0, kw=1.0,
+                 text=f"Published: {i['published']}. Title: {i['title']}") for i in items[:10]]
+
+
 def ask(question: str, history: list[dict]) -> dict:
     q = question.strip()
     key = None
@@ -109,6 +122,9 @@ def ask(question: str, history: list[dict]) -> dict:
                 store.set_embed_used(EMBED_DAILY_LIMIT)
             logging.getLogger("rag").warning("query embedding skipped: %s", str(exc)[:200])
     hits = store.search(qvec, query_text, TOP_K)
+    if _RECENT.search(q):  # "what's new / today / yesterday": add the newest posts with their dates
+        known = {h["url"] for h in hits}
+        hits = hits + [h for h in recent_hits() if h["url"] not in known]
 
     if not hits or (max(h["sem"] for h in hits) < MIN_SIM and max(h["kw"] for h in hits) == 0):
         result = _not_found(q)

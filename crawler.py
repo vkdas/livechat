@@ -15,6 +15,7 @@ class Entry:
     content: str
     updated: str
     kind: str  # post | page
+    published: str = ""
 
 
 def _fetch_feed(kind: str) -> list[Entry]:
@@ -41,6 +42,7 @@ def _fetch_feed(kind: str) -> list[Entry]:
                 content=body,
                 updated=e.get("updated", {}).get("$t", ""),
                 kind="page" if kind == "pages" else "post",
+                published=e.get("published", {}).get("$t", ""),
             ))
         total = int(feed.get("openSearch$totalResults", {}).get("$t", 0))
         start += len(entries)
