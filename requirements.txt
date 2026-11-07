@@ -9,3 +9,5 @@ numpy>=1.26
 google-genai>=1.0
 pydantic>=2.5
 python-dotenv>=1.0
+pypdfium2
+pillow

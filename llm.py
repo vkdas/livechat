@@ -7,7 +7,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
-from config import (PROVIDERS, CHAT_FALLBACK_MODEL, CHAT_MODEL, EMBED_DIM, EMBED_MODEL, GEMINI_API_KEYS, OCR_MODEL)
+from config import (OCR_FALLBACK_MODEL, PROVIDERS, CHAT_FALLBACK_MODEL, CHAT_MODEL, EMBED_DIM, EMBED_MODEL, GEMINI_API_KEYS, OCR_MODEL)
 
 log = logging.getLogger("llm")
 _client = None
@@ -114,11 +114,33 @@ OCR_IMG = ("Extract all text in this image exactly as written (Bangla and/or Eng
            "If it is a decorative photo, logo or icon, output EMPTY. Output only the result.")
 
 
+def _alt_vision(data: bytes, mime: str, prompt: str) -> str:
+    """Read an image with the Groq vision model when Gemini is not usable."""
+    import base64
+    import httpx
+    p = next((x for x in PROVIDERS if x["name"] == "groq"), None)
+    if not p:
+        raise RuntimeError("no vision fallback configured")
+    url = f"data:{mime};base64," + base64.b64encode(data).decode()
+    body = {"model": OCR_FALLBACK_MODEL, "temperature": 0,
+            "messages": [{"role": "user", "content": [{"type": "text", "text": prompt},
+                                                      {"type": "image_url", "image_url": {"url": url}}]}]}
+    r = httpx.post(p["url"] + "/chat/completions", json=body, timeout=90, headers={"Authorization": "Bearer " + p["key"]})
+    r.raise_for_status()
+    return (r.json()["choices"][0]["message"].get("content") or "").strip()
+
+
 def ocr(data: bytes, mime: str) -> str:
     prompt = OCR_PDF if mime == "application/pdf" else OCR_IMG
-    res = _generate([OCR_MODEL, CHAT_FALLBACK_MODEL],
-                    contents=[types.Part.from_bytes(data=data, mime_type=mime), prompt])
-    text = (res.text or "").strip()
+    try:
+        res = _generate([OCR_MODEL, CHAT_FALLBACK_MODEL],
+                        contents=[types.Part.from_bytes(data=data, mime_type=mime), prompt])
+        text = (res.text or "").strip()
+    except Exception as exc:
+        if not mime.startswith("image/") or not PROVIDERS:
+            raise
+        log.warning("Gemini OCR failed (%s); trying the vision fallback", str(exc)[:150])
+        text = _alt_vision(data, mime, prompt)
     return "" if text.upper().startswith("EMPTY") else text
 
 

@@ -99,6 +99,31 @@ def find_attachments(links: list[str], imgs: list[str], base_url: str, skip_imag
     return out
 
 
+def _pdf_pages_png(data: bytes, n: int = 3) -> list[bytes]:
+    """First pages of a PDF as PNG images (for scanned PDFs when Gemini cannot read them)."""
+    import pypdfium2 as pdfium
+
+    pdf = pdfium.PdfDocument(data)
+    out = []
+    for i in range(min(n, len(pdf))):
+        buf = io.BytesIO()
+        pdf[i].render(scale=1.6).to_pil().convert("RGB").save(buf, format="PNG")
+        out.append(buf.getvalue())
+    return out
+
+
+def _vision_pdf(data: bytes) -> str:
+    import time
+
+    parts = []
+    for png in _pdf_pages_png(data, 3):
+        t = llm._alt_vision(png, "image/png", llm.OCR_IMG)
+        if t and not t.upper().startswith("EMPTY"):
+            parts.append(t)
+        time.sleep(2.5)  # stay under the free per-minute limit
+    return "\n\n".join(parts)
+
+
 def extract_pdf(data: bytes) -> str:
     from pypdf import PdfReader
 
@@ -118,6 +143,12 @@ def extract_pdf(data: bytes) -> str:
                     text = ocr_text
             except Exception as exc:
                 log.warning("pdf ocr failed: %s", exc)
+                try:  # Gemini unavailable: let the image model read the first pages
+                    alt = _vision_pdf(data)
+                    if len(alt) > len(text):
+                        text = alt
+                except Exception as exc2:
+                    log.warning("pdf vision fallback failed: %s", exc2)
     return text
 
 

@@ -48,7 +48,7 @@ MAX_IMAGES_PER_POST = _int("MAX_IMAGES_PER_POST", 3)
 OCR_SKIP_IF_TEXT_CHARS = _int("OCR_SKIP_IF_TEXT_CHARS", 800)
 MAX_FILE_MB = _int("MAX_FILE_MB", 15)
 LINKED_PAGES = os.getenv("LINKED_PAGES", "true").lower() == "true"
-MAX_LINKED_PER_POST = _int("MAX_LINKED_PER_POST", 3)
+MAX_LINKED_PER_POST = _int("MAX_LINKED_PER_POST", 5)
 WEB_FALLBACK = os.getenv("WEB_FALLBACK", "true").lower() == "true"
 OCR_IMAGES = os.getenv("OCR_IMAGES", "true").lower() == "true"
 PDF_OCR = os.getenv("PDF_OCR", "auto").lower()  # auto | always | never
@@ -84,3 +84,5 @@ PROVIDERS = [p for p in (
               "nvidia/nemotron-3-ultra-550b-a55b:free"),
     _provider("custom", "FALLBACK_API_KEY", "https://api.groq.com/openai/v1", "FALLBACK_MODEL", "openai/gpt-oss-120b"),
 ) if p]
+
+OCR_FALLBACK_MODEL = os.getenv("OCR_FALLBACK_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")  # Groq vision model for images
