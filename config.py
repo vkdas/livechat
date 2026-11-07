@@ -71,12 +71,14 @@ DAILY_CHAT_CAP = _int("DAILY_CHAT_CAP", 0)
 # Any OpenAI-compatible service works. A provider is active only if its key is set.
 def _provider(name, key_env, url, model_env, model):
     key = os.getenv(key_env, "").strip()
+    models = [m.strip() for m in os.getenv(model_env, model).split(",") if m.strip()]  # tried in this order
     return dict(name=name, key=key, url=os.getenv(name.upper() + "_BASE_URL", url).rstrip("/"),
-                model=os.getenv(model_env, model)) if key else None
+                model=models[0], models=models) if key else None
 
 
 PROVIDERS = [p for p in (
-    _provider("groq", "GROQ_API_KEY", "https://api.groq.com/openai/v1", "GROQ_MODEL", "openai/gpt-oss-120b"),
+    _provider("groq", "GROQ_API_KEY", "https://api.groq.com/openai/v1", "GROQ_MODEL",
+              "openai/gpt-oss-120b,llama-3.3-70b-versatile,llama-3.1-8b-instant"),
     _provider("mistral", "MISTRAL_API_KEY", "https://api.mistral.ai/v1", "MISTRAL_MODEL", "mistral-large-latest"),
     _provider("nvidia", "NVIDIA_API_KEY", "https://integrate.api.nvidia.com/v1", "NVIDIA_MODEL",
               "nvidia/nemotron-3-ultra-550b-a55b"),

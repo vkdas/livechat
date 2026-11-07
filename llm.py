@@ -252,22 +252,27 @@ def _alt_chat(system: str, user: str, json_mode: bool = False, temperature: floa
         raise RuntimeError("no fallback provider configured")
     errors = []
     now = time.time()
-    order = [p for p in PROVIDERS if _pcool.get(p["name"], 0) <= now] or list(PROVIDERS)
+    order = list(PROVIDERS)
     for p in order:
-        body = {"model": p["model"], "temperature": temperature,
-                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
-        try:
-            r = httpx.post(p["url"] + "/chat/completions", json=body, timeout=60,
-                           headers={"Authorization": "Bearer " + p["key"]})
-            r.raise_for_status()
-            text = (r.json()["choices"][0]["message"].get("content") or "").strip()
-            if not text:
-                raise RuntimeError("empty reply")
-            return text
-        except Exception as exc:
-            errors.append(f"{p['name']}({p['model']}): {str(exc)[:160]}")
-            _pcool[p["name"]] = time.time() + (60 if "429" in str(exc) else 300)
-            log.warning("provider %s failed: %s", p["name"], str(exc)[:300])
+        for model in p.get("models") or [p["model"]]:
+            if _pcool.get((p["name"], model), 0) > time.time():
+                continue
+            body = {"model": model, "temperature": temperature, "max_tokens": 1400,
+                    "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+            if "gpt-oss" in model:
+                body["reasoning_effort"] = "low"  # fewer hidden "thinking" tokens against the per-minute limit
+            try:
+                r = httpx.post(p["url"] + "/chat/completions", json=body, timeout=60,
+                               headers={"Authorization": "Bearer " + p["key"]})
+                r.raise_for_status()
+                text = (r.json()["choices"][0]["message"].get("content") or "").strip()
+                if not text:
+                    raise RuntimeError("empty reply")
+                return text
+            except Exception as exc:
+                errors.append(f"{p['name']}({model}): {str(exc)[:130]}")
+                _pcool[(p["name"], model)] = time.time() + (60 if "429" in str(exc) else 300)
+                log.warning("provider %s model %s failed: %s", p["name"], model, str(exc)[:300])
     raise RuntimeError("all providers failed: " + " | ".join(errors))
 
 
