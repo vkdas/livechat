@@ -72,6 +72,7 @@ class Msg(BaseModel):
 class ChatIn(BaseModel):
     question: str = Field(min_length=1, max_length=500)
     history: list[Msg] = Field(default_factory=list, max_length=12)
+    country: str = Field(default="", max_length=2)  # BD | IN, guessed by the widget from the visitor's browser
 
 
 class FeedbackIn(BaseModel):
@@ -108,7 +109,7 @@ def chat(body: ChatIn, request: Request):
     sync.maybe_run_async()
     history = [m.model_dump() for m in body.history]
     try:
-        return rag.ask(body.question, history)
+        return rag.ask(body.question, history, body.country)
     except Exception as exc:
         logging.getLogger("chat").exception("chat failed")
         store.set_meta("last_chat_error",

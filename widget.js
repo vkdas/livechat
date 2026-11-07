@@ -11,6 +11,22 @@
   };
   var API = attr('api', s && s.src ? new URL(s.src).origin : '');
   var TITLE = attr('title', 'KaKoli Ray');
+  // which country's circulars the visitor most likely wants: from the browser's time zone / language, nothing is sent anywhere else
+  var COUNTRY = (function () {
+    var forced = attr('country', '').toUpperCase();
+    if (forced === 'BD' || forced === 'IN') return forced;
+    try {
+      var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      if (/^Asia\/(Dhaka|Dacca)$/.test(tz)) return 'BD';
+      if (/^Asia\/(Kolkata|Calcutta)$/.test(tz)) return 'IN';
+      var langs = navigator.languages || [navigator.language || ''];
+      for (var i = 0; i < langs.length; i++) {
+        if (/-BD$/i.test(langs[i])) return 'BD';
+        if (/-IN$/i.test(langs[i])) return 'IN';
+      }
+    } catch (e) {}
+    return '';
+  })();
   var SUB = attr('subtitle', 'Assistant, BD JOBS INFO');
   var COLOR = attr('color', '#0E5A45');
   var THEME = attr('theme', 'auto'); // auto | light | dark
@@ -367,7 +383,7 @@
     input.value = ''; sendBtn.disabled = true;
     var typing = typingBubble();
     fetch(API + '/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: q, history: hist }) })
+      body: JSON.stringify({ question: q, history: hist, country: COUNTRY }) })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }); })
       .then(function (res) {
         typing.remove();

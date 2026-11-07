@@ -1,3 +1,4 @@
+import contextvars
 import json
 import logging
 import time
@@ -12,6 +13,14 @@ from config import (ALT_CHUNK_CHARS, ALT_MAX_HITS, VISION_PAUSE_SEC, OCR_FALLBAC
 from store import quota_day, store
 
 log = logging.getLogger("llm")
+visitor_country = contextvars.ContextVar("visitor_country", default="")
+COUNTRY_NAME = {"BD": "Bangladesh", "IN": "India"}
+
+
+def country_note() -> str:
+    c = COUNTRY_NAME.get(visitor_country.get())
+    return (f"The visitor is interested in {c}. Prefer {c} circulars and details; mention the other country's circulars only if the visitor asks. "
+            f"If a context item is clearly about the other country, do not use it unless asked.\n") if c else ""
 _client = None
 
 
@@ -203,7 +212,7 @@ def _gemini_answer(question: str, history: list[dict], hits: list[dict]) -> Answ
         f"[{i}] Title: {h['title']}\nURL: {h['url']}\n{h['text']}" for i, h in enumerate(hits, 1))
     hist = "\n".join(
         f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content'][:600]}" for m in history[-6:])
-    prompt = (f"Today's date (Bangladesh): {today()}. Items may start with 'Published: YYYY-MM-DD'; use these dates for questions about new, latest, today or yesterday.\n\n<context>\n{ctx}\n</context>\n\n<conversation>\n{hist}\n</conversation>\n\n"
+    prompt = (country_note() + f"Today's date (Bangladesh): {today()}. Items may start with 'Published: YYYY-MM-DD'; use these dates for questions about new, latest, today or yesterday.\n\n<context>\n{ctx}\n</context>\n\n<conversation>\n{hist}\n</conversation>\n\n"
               f"<question>\n{question}\n</question>")
     res = _generate([CHAT_MODEL, CHAT_FALLBACK_MODEL], contents=prompt,
                     config=types.GenerateContentConfig(
@@ -225,7 +234,7 @@ _URL = __import__("re").compile(r"(?:https?://|www\.)\S+|\b[\w-]+(?:\.[\w-]+)*\.
 
 def general_answer(question: str, history: list[dict]) -> str:
     hist = "\n".join(f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content'][:600]}" for m in history[-4:])
-    res = _generate([CHAT_MODEL, CHAT_FALLBACK_MODEL], contents=f"{hist}\n\nQuestion: {question}",
+    res = _generate([CHAT_MODEL, CHAT_FALLBACK_MODEL], contents=f"{country_note()}{hist}\n\nQuestion: {question}",
                     config=types.GenerateContentConfig(system_instruction=GENERAL, temperature=0.3,
                                                        tools=[types.Tool(google_search=types.GoogleSearch())]))
     text = _URL.sub("", (res.text or "")).strip()
@@ -297,6 +306,6 @@ def _alt_answer(question, history, hits) -> "Answer":
     hist = "\n".join(f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content'][:600]}" for m in history[-6:])
     schema = ('Reply ONLY with JSON: {"found": bool, "answer": string, "used_sources": [int], "followups": [string]}.')
     raw = _alt_chat(SYSTEM + "\n\n" + schema,
-                    f"Today's date (Bangladesh): {today()}. Items may start with 'Published: YYYY-MM-DD'.\n\n<context>\n{ctx}\n</context>\n\n<conversation>\n{hist}\n</conversation>\n\n<question>\n{question}\n</question>",
+                    country_note() + f"Today's date (Bangladesh): {today()}. Items may start with 'Published: YYYY-MM-DD'.\n\n<context>\n{ctx}\n</context>\n\n<conversation>\n{hist}\n</conversation>\n\n<question>\n{question}\n</question>",
                     json_mode=True)
     return Answer(**_json_from(raw))

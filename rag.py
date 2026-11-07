@@ -3,7 +3,7 @@ import logging
 import re
 import time
 
-import llm
+import llm, region
 from config import EMBED_DAILY_LIMIT, EMBEDDINGS, MIN_SIM, TOP_K, WEB_FALLBACK
 from store import store
 from textutil import has_bengali
@@ -98,12 +98,14 @@ def is_smalltalk(q: str) -> bool:
 _RECENT = re.compile(r"(latest|newest|new |recent|today|yesterday|this week|just (published|posted)|নতুন|সর্বশেষ|সাম্প্রতিক|আজ|কাল|কালকে|গতকাল|আজকের|প্রকাশ|এই সপ্তাহ|নতুন সার্কুলার|नया|ताज़ा|आज|कल|جديد|اليوم|أمس)", re.I)
 
 
-def recent_hits() -> list[dict]:
+def recent_hits(country: str = "") -> list[dict]:
     import json
     try:
         items = json.loads(store.get_meta("recent") or "[]")
     except Exception:
         return []
+    if country:
+        items = [i for i in items if region.post_region(i["title"]) in (country, "")]
     return [dict(title=i["title"], url=i["url"], kind="post", sem=1.0, kw=1.0,
                  text=f"Published: {i['published']}. Title: {i['title']}") for i in items[:10]]
 
@@ -164,11 +166,13 @@ def _search_only(q: str, hits: list[dict]) -> dict:
     return {"found": True, "answer": "\n".join(lines), "sources": sources, "followups": []}
 
 
-def ask(question: str, history: list[dict]) -> dict:
+def ask(question: str, history: list[dict], country: str = "") -> dict:
     q = question.strip()
+    country = region.question_country(q) or region.clean(country)  # a country named in the question wins
+    llm.visitor_country.set(country)
     key = None
     if not history:
-        key = f"{store.version}:{hashlib.sha1(_norm(q).encode()).hexdigest()}"
+        key = f"{store.version}:{country}:{hashlib.sha1(_norm(q).encode()).hexdigest()}"
         cached = store.cache_get(key)
         if cached:
             store.log_question(q, cached["found"], True)
@@ -197,10 +201,10 @@ def ask(question: str, history: list[dict]) -> dict:
             if llm.is_daily_quota(exc):
                 store.set_embed_used(EMBED_DAILY_LIMIT)
             logging.getLogger("rag").warning("query embedding skipped: %s", str(exc)[:200])
-    hits = store.search(qvec, expand_query(query_text), TOP_K)
+    hits = region.prefer(store.search(qvec, expand_query(query_text), TOP_K * 3), country, TOP_K)
     if _RECENT.search(q):  # "what's new / today / yesterday": add the newest posts with their dates
         known = {h["url"] for h in hits}
-        hits = hits + [h for h in recent_hits() if h["url"] not in known]
+        hits = hits + [h for h in recent_hits(country) if h["url"] not in known]
 
     if not hits or (max(h["sem"] for h in hits) < MIN_SIM and max(h["kw"] for h in hits) == 0):
         result = _not_found(q)
