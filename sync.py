@@ -91,9 +91,11 @@ def backfill():
                 state["paused"] = True
                 return done, "Google-এর দৈনিক সীমা শেষ"
             log.exception("embedding failed")
+            store.set_meta("last_embed_error", time.strftime("%H:%M:%S", time.gmtime()) + " UTC | " + str(exc)[:400])
             return done, "ত্রুটি, পরে আবার চেষ্টা হবে"
         store.set_embeddings([r[0] for r in rows], vecs)
         store.add_embed_used(len(rows))
+        store.set_meta("last_embed_error", "")
         done += len(rows)
         since_reload += len(rows)
         if since_reload >= 200:

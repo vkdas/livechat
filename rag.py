@@ -93,6 +93,33 @@ def recent_hits() -> list[dict]:
                  text=f"Published: {i['published']}. Title: {i['title']}") for i in items[:10]]
 
 
+BILINGUAL = {
+    "বই": "book books", "চাকরি": "job jobs", "চাকুরি": "job jobs", "নিয়োগ": "recruitment appointment", "বিজ্ঞপ্তি": "notice circular",
+    "সার্কুলার": "circular notice", "আবেদন": "apply application", "পরীক্ষা": "exam examination test", "ফলাফল": "result results",
+    "প্রবেশপত্র": "admit card", "বেতন": "salary pay scale", "যোগ্যতা": "eligibility qualification", "ব্যাংক": "bank",
+    "সরকারি": "government govt", "বেসরকারি": "private", "শিক্ষক": "teacher", "প্রশ্ন": "question questions", "সিলেবাস": "syllabus",
+    "সাজেশন": "suggestion", "ডাউনলোড": "download", "ড্রাইভার": "driver", "সেনাবাহিনী": "army", "নৌবাহিনী": "navy",
+    "বিমানবাহিনী": "air force", "পুলিশ": "police", "বয়স": "age", "শেষ তারিখ": "deadline last date", "মৌখিক": "viva oral",
+    "লিখিত": "written", "ভর্তি": "admission", "বৃত্তি": "scholarship", "নার্স": "nurse", "ডাক্তার": "doctor", "ফি": "fee fees",
+    "কাগজপত্র": "documents", "প্রয়োজনীয়": "required", "নম্বর": "marks number", "বিভাগ": "department division", "পদ": "post position",
+    "অফিসার": "officer", "সহকারী": "assistant", "কর্মকর্তা": "officer", "ইন্টারভিউ": "interview", "সনদ": "certificate",
+    "প্রতিষ্ঠান": "organization institute", "কোম্পানি": "company", "জেলা": "district", "বিশ্ববিদ্যালয়": "university",
+    "স্কুল": "school", "কলেজ": "college", "ভিসা": "visa", "বিদেশ": "abroad foreign overseas", "ফরম": "form", "ফর্ম": "form",
+}
+_EN2BN = {}
+for _bn, _en in BILINGUAL.items():
+    for _w in _en.split():
+        _EN2BN.setdefault(_w, _bn)
+
+
+def expand_query(q: str) -> str:
+    """Bangla <-> English keyword bridge for the keyword search (most posts are in English, visitors write Bangla)."""
+    low = q.lower()
+    extra = [en for bn, en in BILINGUAL.items() if bn in low]
+    extra += [bn for en, bn in _EN2BN.items() if re.search(r"\b" + re.escape(en) + r"s?\b", low)]
+    return q if not extra else q + " " + " ".join(dict.fromkeys(" ".join(extra).split()))
+
+
 def ask(question: str, history: list[dict]) -> dict:
     q = question.strip()
     key = None
@@ -126,7 +153,7 @@ def ask(question: str, history: list[dict]) -> dict:
             if llm.is_daily_quota(exc):
                 store.set_embed_used(EMBED_DAILY_LIMIT)
             logging.getLogger("rag").warning("query embedding skipped: %s", str(exc)[:200])
-    hits = store.search(qvec, query_text, TOP_K)
+    hits = store.search(qvec, expand_query(query_text), TOP_K)
     if _RECENT.search(q):  # "what's new / today / yesterday": add the newest posts with their dates
         known = {h["url"] for h in hits}
         hits = hits + [h for h in recent_hits() if h["url"] not in known]

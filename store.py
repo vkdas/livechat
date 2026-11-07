@@ -299,6 +299,7 @@ class Store:
             kinds = {k: n for k, n in self.db.execute("SELECT kind, COUNT(*) FROM chunks GROUP BY kind")}
         return {
             "kinds": kinds,
+            "last_embed_error": self.get_meta("last_embed_error"),
             "attach_report": self.get_meta("attach_report"),
             "posts": self.post_count(),
             "chunks": self.chunk_count(),
