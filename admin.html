@@ -47,7 +47,7 @@ async function load(){
       '<div class="grid">'+
       [['পোস্ট/পেজ',d.posts],['চাংক (এমবেডিংসহ)',d.chunks+' ('+d.embedded+')'],['৩০ দিনের প্রশ্ন',d.questions_30d],['👍',d.feedback.up],['👎',d.feedback.down]]
         .map(x=>'<div class="card"><div class="num">'+x[1]+'</div><div class="muted">'+x[0]+'</div></div>').join('')+'</div>'+
-      '<div class="card muted">শেষ সিঙ্ক: '+esc(d.last_sync||'—')+'<br>'+esc(d.last_sync_result||'')+'<br>আজ এমবেডিং ব্যবহার: '+d.embed_used+'/'+d.embed_limit+', এমবেডিং বাকি: '+d.pending+(d.last_chat_error?'<br><b>শেষ চ্যাট ত্রুটি:</b> '+esc(d.last_chat_error):'')+'</div>'+
+      '<div class="card muted">শেষ সিঙ্ক: '+esc(d.last_sync||'—')+'<br>'+esc(d.last_sync_result||'')+'<br>আজ এমবেডিং ব্যবহার: '+d.embed_used+'/'+d.embed_limit+', এমবেডিং বাকি: '+d.pending+'<br>পড়া হয়েছে (চাংক): '+esc(Object.entries(d.kinds||{}).map(([k,n])=>k+' '+n).join(', ')||'—')+'<br>'+esc(d.attach_report||'')+(d.last_chat_error?'<br><b>শেষ চ্যাট ত্রুটি:</b> '+esc(d.last_chat_error):'')+'</div>'+
       '<h2>সবচেয়ে বেশি করা প্রশ্ন</h2><div class="card">'+table(d.top_questions,['q','count'])+'</div>'+
       '<h2>উত্তর না পাওয়া প্রশ্ন (নতুন পোস্টের আইডিয়া)</h2><div class="card">'+table(d.unanswered,['q','count'])+'</div>'+
       '<h2>সাম্প্রতিক 👎 উত্তর</h2><div class="card">'+table(d.recent_downvotes,['q','answer'])+'</div>';

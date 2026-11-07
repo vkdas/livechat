@@ -36,30 +36,35 @@ def _not_found(question: str) -> dict:
 
 
 _SMALL = re.compile(
-    r"^\W*(hi+|hello+|hey+|good\s*(morning|afternoon|evening|night)|how are you|thanks?( you)?|thank u|bye|who are you|"
+    r"^\W*(hi+|hello+|hey+|as+a?l+a?m\w*|as+al\w*|wa\s*alaikum\w*|salam\w*|slm|kemon\s+ach\w+|kemon\s+achen|valo\s+ach\w+|bhalo\s+ach\w+|dhonnobad|dhanyabad|good\s*(morning|afternoon|evening|night)|how are you|thanks?( you)?|thank u|bye|who are you|"
     r"are you (a )?(human|bot|ai|real)|what('?s| is) your name|"
     r"হ্যালো|হাই|হেলো|আসসালামু\s*আলাইকুম|সালাম|নমস্কার|কেমন আছ\S*|কি খবর|ধন্যবাদ|থ্যাংক\S*|শুভ\s*\S+|বিদায়|"
     r"তুমি কী কী পারো|তোমার কাছে কি আছে|তোমার কাছে কী আছে|আপনার কাছে কি আছে|কিভাবে করব|কীভাবে করব|কি করতে পারো|কী করতে পারো|সাহায্য|help|what can you do|তুমি কে|আপনি কে|বয়স কত\S*|আপনার বয়স\S*|তোমার বয়স\S*|how old\S*|তোমার নাম কী?|আপনার নাম কী?|তুমি কি (মানুষ|বট|রোবট)|आप कैसे हैं|नमस्ते|धन्यवाद|مرحبا|السلام عليكم|شكرا)"
     r"[\s\W]*(\S+[\s\W]*){0,3}$", re.I)
 
 
+_SALAM = re.compile(r"(as+a?l+a?m\w*|as+al\w*|salam\w*|slm|আসসালামু|আস্সালামু|সালাম|السلام)", re.I)
 _IDENT = re.compile(r"(human|\bbot\b|robot|\bai\b|real person|মানুষ|বট|রোবট|এআই|যন্ত্র|इंसान|रोबोट|إنسان|روبوت)", re.I)
 _AGE = re.compile(r"(how old|\bage\b|বয়স|उम्र|عمرك)", re.I)
 _NAME = re.compile(r"(who are you|your name|তুমি কে|আপনি কে|নাম|कौन|नाम|اسمك|من أنت)", re.I)
 CANNED = {
-    "bn": {"hello": "হ্যালো! আমি ভালো আছি, ধন্যবাদ। আপনি কেমন আছেন? চাকরির সার্কুলার, শেষ তারিখ বা আবেদনের নিয়মে কী জানতে চান, বলুন।",
+    "bn": {"salam": "ওয়ালাইকুম আসসালাম! আমি KaKoli Ray। চাকরির সার্কুলার, শেষ তারিখ বা আবেদনের নিয়মে কী জানতে চান, বলুন।",
+           "hello": "হ্যালো! আমি ভালো আছি, ধন্যবাদ। আপনি কেমন আছেন? চাকরির সার্কুলার, শেষ তারিখ বা আবেদনের নিয়মে কী জানতে চান, বলুন।",
            "name": "আমি KaKoli Ray, BD JOBS INFO-এর সহকারী। চাকরির সার্কুলার, শেষ তারিখ ও আবেদনের নিয়মে আপনাকে সাহায্য করতে পারি।",
            "age": "আমার বয়স বলে কিছু নেই, আমি BD JOBS INFO-এর সহকারী। চাকরির কোন তথ্য জানতে চান, বলুন।",
            "ident": "আমি একটি এআই-চালিত ভার্চুয়াল সহকারী, মানুষ নই। তবে চাকরির সার্কুলার, শেষ তারিখ ও আবেদনের নিয়মে আপনাকে সাহায্য করতে পারি।"},
-    "en": {"hello": "Hello! I'm doing well, thank you. How are you? Tell me what you'd like to know about job circulars, deadlines or how to apply.",
+    "en": {"salam": "Wa alaikum assalam! I'm KaKoli Ray. Tell me what you'd like to know about job circulars, deadlines or how to apply.",
+           "hello": "Hello! I'm doing well, thank you. How are you? Tell me what you'd like to know about job circulars, deadlines or how to apply.",
            "name": "I'm KaKoli Ray, the assistant of BD JOBS INFO. I can help with job circulars, deadlines and how to apply.",
            "age": "I don't have an age. I'm the assistant of BD JOBS INFO. What would you like to know about jobs?",
            "ident": "I'm an AI-powered virtual assistant, not a human. I can still help with job circulars, deadlines and how to apply."},
-    "hi": {"hello": "नमस्ते! मैं ठीक हूँ, धन्यवाद। आप कैसे हैं? नौकरी के सर्कुलर, अंतिम तिथि या आवेदन के बारे में पूछिए।",
+    "hi": {"salam": "वा अलैकुम अस्सलाम! मैं KaKoli Ray हूँ। नौकरी के सर्कुलर या आवेदन के बारे में पूछिए।",
+           "hello": "नमस्ते! मैं ठीक हूँ, धन्यवाद। आप कैसे हैं? नौकरी के सर्कुलर, अंतिम तिथि या आवेदन के बारे में पूछिए।",
            "name": "मैं KaKoli Ray, BD JOBS INFO की सहायक हूँ। नौकरी के सर्कुलर और आवेदन में मदद कर सकती हूँ।",
            "age": "मेरी कोई उम्र नहीं है, मैं BD JOBS INFO की सहायक हूँ। नौकरी के बारे में क्या जानना चाहते हैं?",
            "ident": "मैं एक एआई-संचालित वर्चुअल सहायक हूँ, इंसान नहीं। फिर भी नौकरी के सर्कुलर और आवेदन में मदद कर सकती हूँ।"},
-    "ar": {"hello": "مرحبًا! أنا بخير، شكرًا. كيف حالك؟ اسألني عن الوظائف والمواعيد وطريقة التقديم.",
+    "ar": {"salam": "وعليكم السلام! أنا KaKoli Ray. اسألني عن الوظائف وطريقة التقديم.",
+           "hello": "مرحبًا! أنا بخير، شكرًا. كيف حالك؟ اسألني عن الوظائف والمواعيد وطريقة التقديم.",
            "name": "أنا KaKoli Ray، مساعدة موقع BD JOBS INFO. يمكنني مساعدتك في الوظائف وطريقة التقديم.",
            "age": "ليس لي عمر، أنا مساعدة موقع BD JOBS INFO. ماذا تريد أن تعرف عن الوظائف؟",
            "ident": "أنا مساعد افتراضي يعمل بالذكاء الاصطناعي ولست إنسانًا، لكن يمكنني مساعدتك في الوظائف وطريقة التقديم."},
@@ -67,7 +72,7 @@ CANNED = {
 
 
 def canned_smalltalk(q: str) -> str:
-    kind = "ident" if _IDENT.search(q) else "age" if _AGE.search(q) else "name" if _NAME.search(q) else "hello"
+    kind = "salam" if _SALAM.search(q) else "ident" if _IDENT.search(q) else "age" if _AGE.search(q) else "name" if _NAME.search(q) else "hello"
     return CANNED[detect_lang(q)][kind]
 
 
@@ -150,6 +155,10 @@ def ask(question: str, history: list[dict]) -> dict:
             result = {"found": False, "answer": llm.general_answer(q, history), "sources": [], "followups": []}
         except Exception as exc:
             logging.getLogger("rag").warning("general fallback failed: %s", str(exc)[:200])
+
+    if not result["found"] and not result.get("followups"):
+        # nothing to say yet: point the visitor to the newest circulars instead of a dead end
+        result["followups"] = [h["title"][:90] for h in recent_hits()[:3]]
 
     store.log_question(q, result["found"], False)
     if key:

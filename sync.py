@@ -12,7 +12,13 @@ from textutil import chunk_text
 
 log = logging.getLogger("sync")
 _lock = threading.Lock()
-state = {"running": False, "last_ts": 0.0, "failed": 0, "paused": False}
+state = {"running": False, "last_ts": 0.0, "failed": 0, "paused": False, "att_ok": 0, "att_fail": 0, "att_why": []}
+
+
+def _att_fail(url, exc):
+    state["att_fail"] += 1
+    if len(state["att_why"]) < 6:
+        state["att_why"].append(f"{url[-70:]} -> {str(exc)[:110]}")
 
 
 def build_docs(entry):
@@ -27,18 +33,24 @@ def build_docs(entry):
             d = extract.fetch_attachment(att)
         except Exception as exc:
             log.warning("attachment %s failed: %s", att.url, exc)
+            _att_fail(att.url, exc)
             continue
         if d and d["text"] and d["text"].strip():
             d["title"] = f"{d['title']} ({entry.title})"
             docs.append(d)
+            state["att_ok"] += 1
+        else:
+            _att_fail(att.url, "no readable text")
     for u in extract.find_linked_pages(links):
         try:
             d = extract.fetch_linked(u, entry.url, entry.title)
         except Exception as exc:
             log.warning("linked page %s failed: %s", u, exc)
+            _att_fail(u, exc)
             continue
         if d:
             docs.append(d)
+            state["att_ok"] += 1
     return docs
 
 
@@ -124,6 +136,8 @@ def run(force: bool = False) -> str:
             store.reload()
         msg = (f"নতুন/বদলানো: {changed}, ব্যর্থ: {failed}, মোছা: {removed}, মোট পোস্ট/পেজ: {len(urls)} | "
                f"এমবেডিং: +{embedded} ({why}), বাকি চাংক: {store.pending_count()}")
+        store.set_meta("attach_report", f"ফাইল/ছবি/লিংক পড়া গেছে: {state['att_ok']}, পড়া যায়নি: {state['att_fail']}"
+                       + (" | উদাহরণ: " + " ; ".join(state["att_why"]) if state["att_why"] else ""))
         store.set_meta("last_sync", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + " UTC")
         store.set_meta("last_sync_result", msg)
         log.info(msg)
