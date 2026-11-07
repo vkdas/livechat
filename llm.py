@@ -7,7 +7,9 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
-from config import (OCR_FALLBACK_MODEL, PROVIDERS, CHAT_FALLBACK_MODEL, CHAT_MODEL, EMBED_DIM, EMBED_MODEL, GEMINI_API_KEYS, OCR_MODEL)
+from config import (OCR_FALLBACK_MODEL, PROVIDERS, VISION_DAILY_LIMIT, CHAT_FALLBACK_MODEL, CHAT_MODEL, EMBED_DIM,
+                     EMBED_MODEL, GEMINI_API_KEYS, OCR_MODEL)
+from store import quota_day, store
 
 log = logging.getLogger("llm")
 _client = None
@@ -118,8 +120,6 @@ def _alt_vision(data: bytes, mime: str, prompt: str) -> str:
     """Read an image with the Groq vision model when Gemini is not usable."""
     import base64
     import httpx
-    from .config import VISION_DAILY_LIMIT
-    from .store import quota_day, store
     key = "vision:" + quota_day()
     used = int(store.get_meta(key) or 0)
     if used >= VISION_DAILY_LIMIT:
