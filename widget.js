@@ -332,7 +332,7 @@
     });
   }
   function history() {
-    return msgs.slice(-6).map(function (m) { return { role: m.role, content: m.content }; });
+    return msgs.slice(-6).map(function (m) { return { role: m.role, content: String(m.content || '').slice(0, 1200) }; });
   }
 
   /* ---------- sending ---------- */
@@ -360,7 +360,7 @@
           var m = { role: 'assistant', content: res.j.answer, sources: res.j.sources, followups: res.j.followups, found: res.j.found, q: q };
           msgs.push(m); addBot(m, true); save();
         } else {
-          fail((res.j && res.j.detail) || T().noans, q, res.status >= 500);
+          fail((res.j && typeof res.j.detail === 'string' && res.j.detail) || T().noans, q, res.status >= 500 || res.status === 422);
         }
       })
       .catch(function () {
