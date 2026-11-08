@@ -98,16 +98,24 @@ def is_smalltalk(q: str) -> bool:
 _RECENT = re.compile(r"(latest|newest|new |recent|today|yesterday|this week|just (published|posted)|নতুন|সর্বশেষ|সাম্প্রতিক|আজ|কাল|কালকে|গতকাল|আজকের|প্রকাশ|এই সপ্তাহ|নতুন সার্কুলার|नया|ताज़ा|आज|कल|جديد|اليوم|أمس)", re.I)
 
 
-def recent_hits(country: str = "") -> list[dict]:
+def recent_hits(country: str = "", cat: str = "") -> list[dict]:
     import json
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
     try:
         items = json.loads(store.get_meta("recent") or "[]")
     except Exception:
         return []
     if country:
         items = [i for i in items if region.post_region(i["title"]) in (country, "")]
+    if cat:
+        items = [i for i in items if region.in_category(i["title"], cat)]
+    items = sorted(items, key=lambda i: i["published"], reverse=True)
+    since = (datetime.now(ZoneInfo("Asia/Dhaka")) - timedelta(days=3)).strftime("%Y-%m-%d")
+    fresh = [i for i in items if i["published"] >= since]  # "today / latest": the last few days first
+    items = fresh if len(fresh) >= 3 else items
     return [dict(title=i["title"], url=i["url"], kind="post", sem=1.0, kw=1.0,
-                 text=f"Published: {i['published']}. Title: {i['title']}") for i in items[:10]]
+                 text=f"Published: {i['published']}. Title: {i['title']}") for i in items[:8]]
 
 
 BILINGUAL = {
@@ -170,8 +178,11 @@ def ask(question: str, history: list[dict], country: str = "") -> dict:
     q = question.strip()
     country = region.question_country(q) or region.clean(country)  # a country named in the question wins
     llm.visitor_country.set(country)
+    cat = region.question_category(q)
+    llm.visitor_category.set(cat)
+    wants_recent = bool(_RECENT.search(q))
     key = None
-    if not history:
+    if not history and not wants_recent:  # "today / new" answers change every day: never reuse an old one
         key = f"{store.version}:{country}:{hashlib.sha1(_norm(q).encode()).hexdigest()}"
         cached = store.cache_get(key)
         if cached:
@@ -201,10 +212,11 @@ def ask(question: str, history: list[dict], country: str = "") -> dict:
             if llm.is_daily_quota(exc):
                 store.set_embed_used(EMBED_DAILY_LIMIT)
             logging.getLogger("rag").warning("query embedding skipped: %s", str(exc)[:200])
-    hits = region.prefer(store.search(qvec, expand_query(query_text), TOP_K * 3), country, TOP_K)
-    if _RECENT.search(q):  # "what's new / today / yesterday": add the newest posts with their dates
-        known = {h["url"] for h in hits}
-        hits = hits + [h for h in recent_hits(country) if h["url"] not in known]
+    hits = region.prefer(region.prefer_category(store.search(qvec, expand_query(query_text), TOP_K * 3), cat), country, TOP_K)
+    if wants_recent:  # "what's new / today / yesterday": the newest posts (with dates) come FIRST
+        new = recent_hits(country, cat)
+        known = {h["url"] for h in new}
+        hits = new + [h for h in hits if h["url"] not in known][:4]
 
     if not hits or (max(h["sem"] for h in hits) < MIN_SIM and max(h["kw"] for h in hits) == 0):
         result = _not_found(q)
@@ -242,7 +254,7 @@ def ask(question: str, history: list[dict], country: str = "") -> dict:
         # no answer: suggest only posts about the SAME topic (close matches), never unrelated subjects
         seen_t = []
         for h in hits:
-            if (h.get("kw", 0) > 0 or h.get("sem", 0) >= MIN_SIM) and h["title"][:90] not in seen_t:
+            if (h.get("kw", 0) > 0 or h.get("sem", 0) >= MIN_SIM) and region.in_category(h["title"], cat) and h["title"][:90] not in seen_t:
                 seen_t.append(h["title"][:90])
         result["followups"] = seen_t[:3]
 

@@ -59,3 +59,51 @@ def prefer(hits: list[dict], country: str, keep: int) -> list[dict]:
         ordered = [h for h in same if h["region"] == country] + [h for h in same if h["region"] == ""]
         return ordered[:keep]
     return hits[:keep]
+
+
+# job categories: (name shown to the AI, words in the question, words in a post title)
+CATEGORIES = {
+    "bank": ("Bank jobs", r"ব্যাংক|ব্যাঙ্ক|bank|ibps|sbi", r"ব্যাংক|ব্যাঙ্ক|bank|ibps|sbi|ঋণ|বীমা|insurance"),
+    "teacher": ("Teacher / education jobs", r"শিক্ষক|টিচার|teacher|ntrca|এনটিআরসিএ|প্রভাষক|lecturer|kvs|nvs",
+                r"শিক্ষক|শিক্ষা|teacher|ntrca|এনটিআরসিএ|প্রভাষক|lecturer|kvs|nvs|school|স্কুল|কলেজ|college|মাদ্রাসা|বিদ্যালয়|ডিপিই|dpe"),
+    "university": ("University jobs", r"বিশ্ববিদ্যালয়|ভার্সিটি|university", r"বিশ্ববিদ্যালয়|ভার্সিটি|university"),
+    "police": ("Police jobs", r"পুলিশ|police|constable|কনস্টেবল|এসআই|sub.?inspector", r"পুলিশ|police|constable|কনস্টেবল|এসআই|sub.?inspector"),
+    "army": ("Army / defence jobs", r"সেনা|আর্মি|army|নৌবাহিনী|navy|বিমান|air ?force|বিজিবি|bgb|bsf|crpf|cisf|defence|প্রতিরক্ষা|আনসার|ansar",
+             r"সেনা|আর্মি|army|navy|নৌবাহিনী|বিমান|air ?force|বিজিবি|bgb|bsf|crpf|cisf|defence|প্রতিরক্ষা|আনসার|ansar"),
+    "railway": ("Railway jobs", r"রেল|railway|rrb", r"রেল|railway|rrb"),
+    "health": ("Health / medical jobs", r"স্বাস্থ্য|হাসপাতাল|নার্স|ডাক্তার|চিকিৎসক|medical|nurse|doctor|hospital|aiims|health|ফার্মাসি",
+               r"স্বাস্থ্য|হাসপাতাল|নার্স|ডাক্তার|চিকিৎসক|medical|nurse|doctor|hospital|aiims|health|ফার্মাসি"),
+    "ngo": ("NGO / development jobs", r"এনজিও|ngo|ব্র্যাক|brac|unicef|undp", r"এনজিও|ngo|ব্র্যাক|brac|unicef|undp|\bun\b|প্রকল্প|project"),
+    "engineer": ("Engineering / technical jobs", r"ইঞ্জিনিয়ার|প্রকৌশল|engineer|ডিপ্লোমা|diploma|technician", r"ইঞ্জিনিয়ার|প্রকৌশল|engineer|ডিপ্লোমা|diploma|technician"),
+    "it": ("IT jobs", r"আইটি|software|সফটওয়্যার|programmer|developer", r"আইটি|\bit\b|software|সফটওয়্যার|programmer|developer|কম্পিউটার"),
+    "driver": ("Driver jobs", r"ড্রাইভার|চালক|driver", r"ড্রাইভার|চালক|driver"),
+    "govt": ("Government jobs", r"সরকারি|govt|government|বিসিএস|bcs|bpsc|সচিবালয়|মন্ত্রণালয়|ministry|upsc|সরকারী",
+             r"সরকারি|govt|government|বিসিএস|bcs|bpsc|সচিবালয়|মন্ত্রণালয়|ministry|upsc|ssc|অধিদপ্তর|অধিদফতর|পরিদপ্তর"),
+    "private": ("Private company jobs", r"বেসরকারি|প্রাইভেট|private|কোম্পানি|company|গার্মেন্টস|garments", r"বেসরকারি|প্রাইভেট|private|কোম্পানি|company|গার্মেন্টস|garments|limited|লিমিটেড"),
+}
+_CAT_Q = {k: re.compile(v[1], re.I) for k, v in CATEGORIES.items()}
+_CAT_T = {k: re.compile(v[2], re.I) for k, v in CATEGORIES.items()}
+
+
+def question_category(q: str) -> str:
+    """The job category the visitor asks about ('' if none or several different ones)."""
+    found = [k for k, rx in _CAT_Q.items() if rx.search(q or "")]
+    if len(found) > 1 and "govt" in found:
+        found.remove("govt")  # "সরকারি ব্যাংক": the more specific category wins
+    return found[0] if len(found) == 1 else ""
+
+
+def in_category(title: str, cat: str) -> bool:
+    return not cat or bool(_CAT_T[cat].search(title or ""))
+
+
+def category_name(cat: str) -> str:
+    return CATEGORIES[cat][0] if cat in CATEGORIES else ""
+
+
+def prefer_category(hits: list[dict], cat: str) -> list[dict]:
+    """Keep posts of the asked category (by title); other posts only when too few match."""
+    if not cat:
+        return hits
+    same = [h for h in hits if in_category(h["title"], cat)]
+    return same if len(same) >= 2 else hits

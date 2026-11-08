@@ -8,22 +8,31 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
+from region import category_name
 from config import (ALT_CHUNK_CHARS, ALT_MAX_HITS, VISION_PAUSE_SEC, OCR_FALLBACK_MODELS, PROVIDERS, VISION_DAILY_LIMIT, CHAT_FALLBACK_MODEL, CHAT_MODEL, EMBED_DIM,
                      EMBED_MODEL, GEMINI_API_KEYS, OCR_MODEL)
 from store import quota_day, store
 
 log = logging.getLogger("llm")
 visitor_country = contextvars.ContextVar("visitor_country", default="")
+visitor_category = contextvars.ContextVar("visitor_category", default="")
 COUNTRY_NAME = {"BD": "Bangladesh", "IN": "India"}
 
 
 def country_note() -> str:
+    out = ""
     c = COUNTRY_NAME.get(visitor_country.get())
-    return (f"The visitor is interested in {c}. Prefer {c} circulars and details; mention the other country's circulars only if the visitor asks. "
-            f"If a context item is clearly about the other country, do not use it unless asked.\n") if c else ""
-_client = None
+    if c:
+        out += (f"The visitor is interested in {c}. Prefer {c} circulars and details; mention the other country's circulars only if the visitor asks. "
+                f"If a context item is clearly about the other country, do not use it unless asked.\n")
+    cat = category_name(visitor_category.get())
+    if cat:
+        out += (f"The visitor asks about: {cat}. Answer and suggest only circulars of this category; do not suggest other job categories. "
+                f"For 'today'/'latest' questions list the newest matching circulars first with their published dates.\n")
+    return out
 
 
+_client = None  # tests replace this
 _clients: dict = {}
 _cool: dict = {}  # (key index, model) -> time until which that key is skipped for that model
 

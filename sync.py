@@ -120,7 +120,7 @@ def run(force: bool = False) -> str:
             store.set_meta("last_sync_result", msg)
             return msg
         urls = {e.url for e in entries}
-        recent = sorted((e for e in entries if e.kind == "post" and e.published), key=lambda e: e.published, reverse=True)[:12]
+        recent = sorted((e for e in entries if e.kind == "post" and e.published), key=lambda e: e.published, reverse=True)[:40]
         store.set_meta("recent", json.dumps([dict(url=e.url, title=e.title, published=e.published[:10]) for e in recent]))
         changed = failed = incomplete = 0
         for e in entries:
