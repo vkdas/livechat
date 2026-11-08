@@ -49,16 +49,13 @@ def clean(country: str) -> str:
 
 
 def prefer(hits: list[dict], country: str, keep: int) -> list[dict]:
-    """Put posts of the visitor's country first and drop the other country's posts when enough remain."""
+    """Only the visitor's country: its posts first, then posts that name no country. The other country's posts are dropped."""
     if not country:
         return hits[:keep]
     for h in hits:
         h.setdefault("region", post_region(h["title"], h["text"]))
-    same = [h for h in hits if h["region"] in (country, "")]
-    if len(same) >= 2:
-        ordered = [h for h in same if h["region"] == country] + [h for h in same if h["region"] == ""]
-        return ordered[:keep]
-    return hits[:keep]
+    same = [h for h in hits if h["region"] == country] + [h for h in hits if h["region"] == ""]
+    return same[:keep]
 
 
 # job categories: (name shown to the AI, words in the question, words in a post title)

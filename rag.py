@@ -198,10 +198,13 @@ def ask(question: str, history: list[dict], country: str = "") -> dict:
 
     # follow-up questions are often short: add the previous user question for retrieval
     query_text = q
-    if history and len(q.split()) < 6:
+    if history and len(q.split()) < 9:
         prev = [m["content"] for m in history if m["role"] == "user"]
+        bot = [m["content"] for m in history if m["role"] != "user"]
         if prev:
             query_text = f"{prev[-1]} {q}"
+        if bot:  # "are these still open?": "these" are the posts named in the last answer
+            query_text += " " + re.sub(r"https?://\S+|[*_#>\[\]()]", " ", bot[-1])[:500]
 
     qvec = None
     if EMBEDDINGS != "off" and store.embed_available():
