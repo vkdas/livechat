@@ -10,6 +10,15 @@
     return v == null || v === '' ? d : v;
   };
   var API = attr('api', s && s.src ? new URL(s.src).origin : '');
+  var GAS = /script\.google(usercontent)?\.com/.test(API);   // Google Apps Script backend: one address, action inside the body
+  var BASE = s && s.src ? s.src.replace(/[^\/]*$/, '') : '';  // folder the widget was loaded from (photo can live next to it)
+  function api(path, obj) {
+    if (GAS) {  // plain-text POST: no browser pre-check request, which Apps Script cannot answer
+      var o = {}; for (var k in obj) o[k] = obj[k]; o.action = path.replace('/', '');
+      return fetch(API, { method: 'POST', body: JSON.stringify(o) });
+    }
+    return fetch(API + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj) });
+  }
   var TITLE = attr('title', 'KaKoli Ray');
   // which country's circulars the visitor most likely wants: from the browser's time zone / language, nothing is sent anywhere else
   var COUNTRY = (function () {
@@ -248,7 +257,7 @@
   var logo = $('.logo'), photo = new Image();
   photo.alt = '';
   photo.onload = function () { logo.innerHTML = ''; logo.classList.add('ph'); logo.appendChild(photo); };
-  photo.src = attr('photo', API + '/avatar');
+  photo.src = attr('photo', GAS ? (BASE ? BASE + 'avatar.jpg' : '') : API + '/avatar');
 
   function setLabel(el, text) { el.setAttribute('aria-label', text); el.title = text; }
   function applyLang() {
@@ -316,8 +325,7 @@
         '<button data-r="-1" aria-label="' + esc(t.down) + '" title="' + esc(t.down) + '">' + icon('dn', 16) + '</button>';
       fb.onclick = function (e) {
         var b = e.target.closest && e.target.closest('button'); if (!b) return;
-        fetch(API + '/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: m.q, answer: m.content, rating: parseInt(b.getAttribute('data-r'), 10) }) }).catch(function () {});
+        api('/feedback', { question: m.q, answer: m.content, rating: parseInt(b.getAttribute('data-r'), 10) }).catch(function () {});
         fb.innerHTML = '<span class="ok">' + icon('check', 15) + esc(t.thanks) + '</span>';
       };
       d.appendChild(fb);
@@ -382,12 +390,13 @@
     msgs.push({ role: 'user', content: q }); addUser(q);
     input.value = ''; sendBtn.disabled = true;
     var typing = typingBubble();
-    fetch(API + '/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: q, history: hist, country: COUNTRY }) })
+    api('/chat', { question: q, history: hist, country: COUNTRY })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }); })
       .then(function (res) {
         typing.remove();
-        if (res.ok) {
+        if (res.ok && res.j && typeof res.j.error === 'string') {   // Apps Script always answers 200, errors are inside
+          fail(res.j.error, q, true);
+        } else if (res.ok) {
           var m = { role: 'assistant', content: res.j.answer, sources: res.j.sources, followups: res.j.followups, found: res.j.found, q: q };
           msgs.push(m); addBot(m, true); save();
         } else {
